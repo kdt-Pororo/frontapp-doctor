@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme inline {
+    --font-sans: var(--font-pretendard-local), sans-serif;
+    --font-pretendard: var(--font-pretendard-local), sans-serif;
+}
+
+@theme {
+    --color-primary: #00CBA8;
+    --color-sub-1: #FFEC6B;
+    --color-sub-2: #907EFF;
+}
+
+@layer base {
+    button:not(:disabled) { @apply cursor-pointer; }
+}
