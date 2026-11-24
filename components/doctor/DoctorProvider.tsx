@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -60,9 +61,9 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
   ) {
     setNotice({ message, tone });
   }
-  function updateProfile(profile: DoctorProfile) {
+  const updateProfile = useCallback((profile: DoctorProfile) => {
     setState((s) => ({ ...s, profile }));
-  }
+  }, []);
   function setVerification(verification: DoctorProfile["verification"]) {
     setState((s) => ({ ...s, profile: { ...s.profile, verification } }));
   }

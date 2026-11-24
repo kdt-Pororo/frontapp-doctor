@@ -36,7 +36,7 @@ export default function DoctorAuthFrame({
         </header>
         <main className="mx-auto max-w-4xl px-8 py-14">{children}</main>
         <p className="pb-8 text-center text-xs text-[#9AABB5]">
-          프론트 화면 시연 · 실제 회원 등록과 자격 검증은 연결 전입니다.
+          의료진 자격 확인이 완료되면 산모 관리 기능을 이용할 수 있습니다.
         </p>
       </div>
     );
@@ -87,7 +87,7 @@ export default function DoctorAuthFrame({
           {children}
         </div>
         <p className="text-center text-xs text-[#A8B4BB]">
-          프론트 시연 화면 · 실제 산모 정보가 아닙니다.
+          NESTEP 의료진 전용 서비스
         </p>
       </main>
     </div>

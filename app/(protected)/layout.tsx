@@ -1,7 +1,8 @@
 import { Suspense, type ReactNode } from "react";
+import DoctorAuthGate from "@/components/doctor/DoctorAuthGate";
 import DoctorShell from "@/components/doctor/DoctorShell";
 
-// 인증 여부의 실제 검사는 향후 백엔드 세션과 연결합니다. 현재는 가상 화면 시연입니다.
+// 의료진 세션과 승인 여부를 확인한 뒤 워크스페이스를 표시합니다.
 export default function DoctorWorkspaceLayout({
   children,
 }: {
@@ -15,7 +16,7 @@ export default function DoctorWorkspaceLayout({
         </main>
       }
     >
-      <DoctorShell>{children}</DoctorShell>
+      <DoctorAuthGate><DoctorShell>{children}</DoctorShell></DoctorAuthGate>
     </Suspense>
   );
 }
