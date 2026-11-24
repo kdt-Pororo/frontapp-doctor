@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { logoutDoctorApi } from "@/api/auth/doctor-auth.api";
 import {
   ArrowUpRight,
   ChevronRight,
@@ -25,7 +26,12 @@ const links = [
 
 export default function DoctorShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { state } = useDoctor();
+  const { state, notify } = useDoctor();
+  const router = useRouter();
+  async function logout() {
+    try { await logoutDoctorApi(); router.replace("/login"); }
+    catch { notify("로그아웃하지 못했습니다. 다시 시도해 주세요.", "error"); }
+  }
   const active = pathname.includes("/connect")
     ? "/patients/connect"
     : pathname.includes("/patients")
@@ -122,13 +128,14 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
               </p>
             </div>
           </Link>
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={logout}
             className="mt-5 flex items-center gap-2 text-xs text-[#7894A2]"
           >
             <LogOut size={14} />
-            로그인 화면
-          </Link>
+            로그아웃
+          </button>
         </div>
       </aside>
       <div className="min-w-0">

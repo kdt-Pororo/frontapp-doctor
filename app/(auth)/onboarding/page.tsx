@@ -1,5 +1,5 @@
-import DoctorOnboarding from "./_components/DoctorOnboarding";
+import DoctorSocialComplete from "./_components/DoctorSocialComplete";
 
 export default function Page() {
-  return <DoctorOnboarding />;
+    return <DoctorSocialComplete />;
 }

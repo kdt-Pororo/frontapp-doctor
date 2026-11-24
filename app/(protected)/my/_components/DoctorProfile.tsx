@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { logoutDoctorApi } from "@/api/auth/doctor-auth.api";
 import { LogOut, Pencil, ShieldCheck } from "lucide-react";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
 import {
@@ -209,7 +210,12 @@ export default function DoctorProfile() {
             </Button>
             <Button
               disabled={dialog === "withdraw" && confirmText !== "탈퇴"}
-              onClick={() => {
+              onClick={async () => {
+                if (dialog === "logout") {
+                  try { await logoutDoctorApi(); setDialog(null); router.replace("/login"); }
+                  catch { notify("로그아웃하지 못했습니다. 다시 시도해 주세요.", "error"); }
+                  return;
+                }
                 if (dialog === "withdraw") startDemo();
                 notify(
                   dialog === "withdraw"
@@ -221,7 +227,7 @@ export default function DoctorProfile() {
                 router.push("/login");
               }}
             >
-              {dialog === "logout" ? "로그인 화면으로" : "시연 상태 초기화"}
+              {dialog === "logout" ? "로그아웃" : "시연 상태 초기화"}
             </Button>
           </div>
         </Dialog>
