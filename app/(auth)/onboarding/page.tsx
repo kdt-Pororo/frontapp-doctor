@@ -1,5 +1,5 @@
-import DoctorSocialComplete from "./_components/DoctorSocialComplete";
+import DoctorAdditionalForm from "./_components/DoctorAdditionalForm";
 
 export default function Page() {
-    return <DoctorSocialComplete />;
+    return <DoctorAdditionalForm />;
 }
