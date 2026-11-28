@@ -71,10 +71,11 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
         >
           <Image
             src="/icons/nestep_main_icon.png"
-            width={30}
-            height={29}
+            width={553}
+            height={513}
+            sizes="30px"
             alt=""
-            className="h-auto "
+            className="h-auto w-7.5"
           />
           NESTEP
         </Link>

@@ -17,10 +17,11 @@ export default function DoctorAuthFrame({
     >
       <Image
         src="/icons/nestep_main_icon.png"
-        width={31}
-        height={31}
+        width={553}
+        height={513}
+        sizes="31px"
         alt=""
-        className="h-auto "
+        className="h-auto w-7.75"
       />
       NESTEP
       <span className="ml-2 border-l border-current/20 pl-3 text-xs font-normal tracking-normal opacity-60">
