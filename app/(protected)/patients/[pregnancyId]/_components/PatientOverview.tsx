@@ -59,7 +59,7 @@ export default function PatientOverview({
     },
     {
       label: "최근 검진",
-      value: exam ? doctorDate(exam.visitedAt) : "기록 없음",
+      value: exam ? doctorDate(exam.visitedAt) : "API 연결 예정",
       icon: FileText,
     },
   ];
@@ -115,7 +115,7 @@ export default function PatientOverview({
                 ))}
               </div>
             ) : (
-              <EmptyState title="아직 공유된 증상 기록이 없습니다" />
+              <EmptyState title="증상 기록 API 연결 예정" />
             )}
           </Card>
           <Card
@@ -166,7 +166,7 @@ export default function PatientOverview({
                 </div>
               </>
             ) : (
-              <EmptyState title="등록된 검진 기록이 없습니다" />
+              <EmptyState title="검진 기록 API 연결 예정" />
             )}
           </Card>
         </div>
@@ -190,7 +190,7 @@ export default function PatientOverview({
               </>
             ) : (
               <p className="py-5 text-sm text-[#96A7B1]">
-                예정된 방문이 없습니다.
+                방문 일정 API 연결 예정입니다.
               </p>
             )}
           </Card>
@@ -212,7 +212,7 @@ export default function PatientOverview({
           <Card title="연결 및 관리 상태">
             <div className="flex items-center gap-2 text-sm text-[#6E8C97]">
               <Link2 size={15} />
-              <span>산모 승인·동의 완료</span>
+              <span>산모 요청 · 의료진 수락 완료</span>
             </div>
             <div className="mt-4">
               <Badge tone={patient.status === "active" ? "teal" : "neutral"}>
@@ -224,10 +224,11 @@ export default function PatientOverview({
             <div className="mt-5 border-t border-[#EDF1F3] pt-4">
               <button
                 type="button"
-                onClick={() => setShowDisconnect(true)}
+                disabled
+                title="연결 해제 API 연결 예정"
                 className="text-xs text-[#A0AEB5] underline-offset-4 hover:underline"
               >
-                담당 연결 해제
+                담당 연결 해제 (연결 예정)
               </button>
             </div>
           </Card>

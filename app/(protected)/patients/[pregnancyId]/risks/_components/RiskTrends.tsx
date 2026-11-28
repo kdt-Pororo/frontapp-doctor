@@ -60,9 +60,8 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
       <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#DADFED] bg-[#F0F2F9] px-5 py-4 text-xs leading-6 text-[#74849D]">
         <FlaskConical size={20} className="shrink-0" />
         <p>
-          <strong className="font-semibold">연구 화면 예시</strong> · 가상
-          검진으로 만든 UI 시연 점수입니다. 실제 모델 예측·임상 확률·진단으로
-          사용할 수 없습니다. 모델과 데이터셋은 검토 중입니다.
+          <strong className="font-semibold">위험 분석 API 연결 예정</strong> ·
+          검진 기록과 예측 결과를 연결한 뒤 변화 추이를 표시합니다.
         </p>
       </div>
       <div className="mb-6 flex justify-between">
@@ -98,10 +97,7 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
             title="아직 예측 결과가 없습니다"
             description="검진 기록이 저장되어도 모델 연결 전에는 위험도 점수가 생성되지 않습니다."
             action={
-              <LinkButton
-                secondary
-                href={`/patients/${patient.id}/records`}
-              >
+              <LinkButton secondary href={`/patients/${patient.id}/records`}>
                 검진 기록 보기
               </LinkButton>
             }
@@ -285,10 +281,7 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
                 {record?.notes}
               </p>
               <div className="mt-5">
-                <LinkButton
-                  href={`/patients/${patient.id}/records`}
-                  secondary
-                >
+                <LinkButton href={`/patients/${patient.id}/records`} secondary>
                   원본 검진 기록
                 </LinkButton>
               </div>

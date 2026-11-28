@@ -1,5 +1,6 @@
-// 프론트 시연용 데이터입니다. 백엔드 DTO가 확정되면 API 응답 타입과 별도로 연결합니다.
+// 의료진 화면에서 사용하는 상태 타입입니다. API DTO는 doctor-patient.type.ts에서 관리합니다.
 export interface DoctorProfile {
+  id?: number;
   name: string;
   nickname: string;
   phone: string;
@@ -77,7 +78,7 @@ export interface EndRequest {
   source: "doctor" | "mother";
 }
 
-export interface DoctorDemoState {
+export interface DoctorWorkspaceState {
   profile: DoctorProfile;
   patients: DoctorPatient[];
   records: ExamRecord[];

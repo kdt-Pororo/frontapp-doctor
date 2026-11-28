@@ -39,7 +39,7 @@ export default function PatientRecords({
       <PatientNavigation patient={patient} />
       <Card
         title="기록 보관함"
-        description="검진 기록과 산모가 작성한 증상 일지를 함께 확인합니다."
+        description="검진 기록·증상 일지 API 연결 예정입니다. 아직 실제 기록을 조회하지 않습니다."
       >
         <div className="mb-6 flex gap-2">
           {[

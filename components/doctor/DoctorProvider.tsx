@@ -8,47 +8,123 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CheckCircle2, Info, X, CircleAlert } from "lucide-react";
-import {
-  EXAMPLE_PATIENT_CODE,
-  initialDoctorState,
-} from "@/app/_data/doctor-demo";
+import { CheckCircle2, CircleAlert, Info, X } from "lucide-react";
+import { getDoctorConnectionsApi } from "@/api/doctor/doctor-patient.api";
+import type { DoctorCareRequestDTO } from "@/types/doctor/doctor-patient.type";
 import type {
-  DoctorDemoState,
+  DoctorWorkspaceState,
   DoctorProfile,
   ExamInput,
 } from "@/types/doctor/doctor.type";
 
+const emptyState: DoctorWorkspaceState = {
+  profile: {
+    name: "",
+    nickname: "",
+    phone: "",
+    hospital: "",
+    department: "",
+    license: "",
+    verification: "pending",
+  },
+  patients: [],
+  records: [],
+  appointments: [],
+  symptoms: [],
+  observations: [],
+  connectionRequests: [],
+  endRequests: [],
+};
+
 interface DoctorContextValue {
-  state: DoctorDemoState;
-  notify: (message: string, tone?: "success" | "info" | "error") => void;
-  startDemo: () => void;
+  state: DoctorWorkspaceState;
+  requests: DoctorCareRequestDTO[];
+  loading: boolean;
+  loadError: string;
+  refreshConnections: () => void;
   updateProfile: (profile: DoctorProfile) => void;
-  setVerification: (status: DoctorProfile["verification"]) => void;
+  notify: (message: string, tone?: "success" | "info" | "error") => void;
   saveExam: (input: ExamInput) => void;
-  registerCode: (code: string) => boolean;
-  approveConnection: (requestId: string) => void;
-  cancelConnection: (requestId: string) => void;
-  revokeCare: (patientId: string) => void;
-  requestEnd: (
-    patientId: string,
-    date: string,
-    reason: string,
-    note: string,
-  ) => void;
-  cancelEnd: (requestId: string) => void;
-  completeEnd: (patientId: string, source: "mother" | "doctor") => void;
+  revokeCare: (id: string) => void;
 }
 
 const DoctorContext = createContext<DoctorContextValue | null>(null);
 
 export function DoctorProvider({ children }: { children: ReactNode }) {
-  // 프론트 시연 상태만 보관합니다. 실제 회원·검진 DB나 브라우저 영구 저장소에 쓰지 않습니다.
-  const [state, setState] = useState<DoctorDemoState>(initialDoctorState);
+  const [state, setState] = useState(emptyState);
+  const [requests, setRequests] = useState<DoctorCareRequestDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState<{
     message: string;
     tone: "success" | "info" | "error";
   } | null>(null);
+  const doctorId = state.profile.id;
+  const verified = state.profile.verification === "verified";
+
+  const updateProfile = useCallback((profile: DoctorProfile) => {
+    // 다른 계정으로 로그인하면 이전 계정 목록을 재사용하지 않습니다.
+    setState((previous) =>
+      previous.profile.id === profile.id
+        ? { ...previous, profile }
+        : { ...emptyState, profile },
+    );
+  }, []);
+  const refreshConnections = useCallback(
+    () => setRevision((value) => value + 1),
+    [],
+  );
+
+  useEffect(() => {
+    if (!doctorId || !verified) return;
+    const controller = new AbortController();
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) {
+        setLoading(true);
+        setLoadError("");
+        setRequests([]);
+      }
+    });
+    getDoctorConnectionsApi(controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setRequests(result.requests);
+        setState((previous) => ({
+          ...previous,
+          patients: result.patients.map((patient) => ({
+            id: String(patient.pregnancy_id),
+            name: patient.mother_name,
+            phone: patient.mother_phone,
+            babyName: patient.baby_names.join(", "),
+            weeks: patient.weeks,
+            days: patient.days,
+            dueDate: patient.due_date ?? "",
+            status: patient.status,
+            connection: "approved" as const,
+            endedOn: patient.ended_on ?? undefined,
+          })),
+        }));
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) {
+          setLoadError(
+            cause instanceof Error
+              ? cause.message
+              : "연결 목록을 불러오지 못했습니다.",
+          );
+          setState((previous) => ({
+            ...emptyState,
+            profile: previous.profile,
+          }));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [doctorId, verified, revision]);
+
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(null), 5000);
@@ -61,255 +137,38 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
   ) {
     setNotice({ message, tone });
   }
-  const updateProfile = useCallback((profile: DoctorProfile) => {
-    setState((s) => ({ ...s, profile }));
-  }, []);
-  function setVerification(verification: DoctorProfile["verification"]) {
-    setState((s) => ({ ...s, profile: { ...s.profile, verification } }));
+  function unavailable() {
+    notify("이 기능은 백엔드 연결 후 사용할 수 있습니다.", "info");
   }
-  function startDemo() {
-    setState(initialDoctorState);
-    notify("샘플 데이터로 의료진 화면을 시작합니다.", "info");
+  function saveExam() {
+    throw new Error("검진 저장 API는 아직 연결되지 않았습니다.");
   }
-
-  function saveExam(input: ExamInput) {
-    const patient = state.patients.find((p) => p.id === input.patientId);
-    if (
-      !patient ||
-      patient.connection !== "approved" ||
-      patient.status === "ended"
-    )
-      throw new Error("현재 이 임신에 새 기록을 입력할 수 없습니다.");
-    const record = {
-      id: crypto.randomUUID(),
-      patientId: input.patientId,
-      visitedAt: input.visitedAt,
-      title: input.title,
-      notes: input.notes,
-      results: input.results,
-      bloodPressure: input.bloodPressure,
-      weight: input.weight,
-      predictionStatus: "not-configured" as const,
-    };
-    const appointment = input.nextDate
-      ? {
-          id: crypto.randomUUID(),
-          patientId: input.patientId,
-          date: input.nextDate,
-          time: input.nextTime,
-          title: input.nextTitle || "다음 검진",
-          status: "scheduled" as const,
-        }
-      : null;
-    setState((s) => ({
-      ...s,
-      records: [...s.records, record],
-      appointments: appointment
-        ? [...s.appointments, appointment]
-        : s.appointments,
-    }));
-    notify(
-      "검진 기록을 시연 화면에 저장했습니다. 모델 연결 전이라 예측은 실행하지 않습니다.",
-      "info",
-    );
-  }
-
-  function registerCode(code: string) {
-    if (code.trim().toUpperCase() !== EXAMPLE_PATIENT_CODE) {
-      notify("시연용 코드 NESTEP-1024를 입력해 주세요.", "error");
-      return false;
-    }
-    const patient = state.patients.find((p) => p.id === "PG-1029");
-    if (!patient || patient.connection !== "unlinked") {
-      notify("이미 요청했거나 연결된 시연 코드입니다.", "info");
-      return false;
-    }
-    const request = {
-      id: crypto.randomUUID(),
-      patientId: patient.id,
-      date: "2026-11-22",
-      status: "pending" as const,
-    };
-    setState((s) => ({
-      ...s,
-      patients: s.patients.map((p) =>
-        p.id === patient.id ? { ...p, connection: "pending" } : p,
-      ),
-      connectionRequests: [...s.connectionRequests, request],
-    }));
-    notify("산모 확인을 기다리는 시연 연결 요청을 만들었습니다.");
-    return true;
-  }
-
-  function approveConnection(requestId: string) {
-    const request = state.connectionRequests.find(
-      (r) => r.id === requestId && r.status === "pending",
-    );
-    if (!request) return;
-    setState((s) => ({
-      ...s,
-      connectionRequests: s.connectionRequests.map((r) =>
-        r.id === requestId ? { ...r, status: "approved" } : r,
-      ),
-      patients: s.patients.map((p) =>
-        p.id === request.patientId ? { ...p, connection: "approved" } : p,
-      ),
-    }));
-    notify("산모가 연결을 승인한 상황을 시연했습니다.");
-  }
-
-  function cancelConnection(requestId: string) {
-    const request = state.connectionRequests.find(
-      (r) => r.id === requestId && r.status === "pending",
-    );
-    if (!request) return;
-    setState((s) => ({
-      ...s,
-      connectionRequests: s.connectionRequests.map((r) =>
-        r.id === requestId ? { ...r, status: "cancelled" } : r,
-      ),
-      patients: s.patients.map((p) =>
-        p.id === request.patientId ? { ...p, connection: "unlinked" } : p,
-      ),
-    }));
-    notify("연결 요청을 취소했습니다.");
-  }
-
-  function revokeCare(patientId: string) {
-    setState((s) => ({
-      ...s,
-      patients: s.patients.map((p) =>
-        p.id === patientId ? { ...p, connection: "revoked" } : p,
-      ),
-    }));
-    notify("담당 연결을 해제했습니다. 산모의 임신 상태는 유지됩니다.");
-  }
-
-  function requestEnd(
-    patientId: string,
-    date: string,
-    reason: string,
-    note: string,
-  ) {
-    const patient = state.patients.find((p) => p.id === patientId);
-    if (
-      !patient ||
-      patient.connection !== "approved" ||
-      patient.status !== "active"
-    )
-      throw new Error("현재 종료 요청을 보낼 수 없습니다.");
-    if (
-      state.endRequests.some(
-        (r) => r.patientId === patientId && r.status === "pending",
-      )
-    )
-      throw new Error("확인 대기 중인 요청이 있습니다.");
-    const request = {
-      id: crypto.randomUUID(),
-      patientId,
-      date,
-      reason,
-      note,
-      status: "pending" as const,
-      source: "doctor" as const,
-    };
-    setState((s) => ({ ...s, endRequests: [...s.endRequests, request] }));
-    notify(
-      "산모 확인 대기 상태로 변경했습니다. 실제 알림은 발송되지 않습니다.",
-      "info",
-    );
-  }
-
-  function cancelEnd(requestId: string) {
-    setState((s) => ({
-      ...s,
-      endRequests: s.endRequests.map((r) =>
-        r.id === requestId && r.status === "pending"
-          ? { ...r, status: "cancelled" }
-          : r,
-      ),
-    }));
-    notify("종료 요청을 취소했습니다.");
-  }
-
-  function completeEnd(patientId: string, source: "mother" | "doctor") {
-    const patient = state.patients.find(
-      (p) =>
-        p.id === patientId &&
-        p.status === "active" &&
-        p.connection === "approved",
-    );
-    if (!patient) return;
-    const pending = state.endRequests.find(
-      (r) => r.patientId === patientId && r.status === "pending",
-    );
-    if (source === "doctor" && !pending) return;
-    const date = source === "doctor" ? pending!.date : "2026-11-22";
-    const completed = {
-      id: crypto.randomUUID(),
-      patientId,
-      date,
-      reason: "산모 직접 종료",
-      note: "산모가 단독으로 종료한 상황의 시연입니다.",
-      status: "completed" as const,
-      source: "mother" as const,
-    };
-    setState((s) => ({
-      ...s,
-      patients: s.patients.map((p) =>
-        p.id === patientId ? { ...p, status: "ended", endedOn: date } : p,
-      ),
-      appointments: s.appointments.map((a) =>
-        a.patientId === patientId ? { ...a, status: "cancelled" } : a,
-      ),
-      endRequests:
-        source === "doctor"
-          ? s.endRequests.map((r) =>
-              r.id === pending!.id ? { ...r, status: "completed" } : r,
-            )
-          : [
-              ...s.endRequests.map((r) =>
-                r.patientId === patientId && r.status === "pending"
-                  ? { ...r, status: "cancelled" as const }
-                  : r,
-              ),
-              completed,
-            ],
-    }));
-    notify(
-      "임신 관리 종료를 반영했습니다. 이전 기록은 계속 열람할 수 있습니다.",
-    );
-  }
-
   const NoticeIcon =
     notice?.tone === "error"
       ? CircleAlert
       : notice?.tone === "info"
         ? Info
         : CheckCircle2;
+
   return (
     <DoctorContext.Provider
       value={{
         state,
-        notify,
-        startDemo,
+        requests,
+        loading,
+        loadError,
+        refreshConnections,
         updateProfile,
-        setVerification,
+        notify,
         saveExam,
-        registerCode,
-        approveConnection,
-        cancelConnection,
-        revokeCare,
-        requestEnd,
-        cancelEnd,
-        completeEnd,
+        revokeCare: unavailable,
       }}
     >
       {children}
       {notice && (
         <div
           role="status"
-          className="fixed bottom-7 right-7 z-100 flex max-w-xl items-start gap-3 rounded-2xl border border-[#DEE7EA] bg-white px-5 py-4 text-sm text-[#23424D] shadow-xl"
+          className="fixed right-7 bottom-7 z-100 flex max-w-xl items-start gap-3 rounded-2xl border border-[#DEE7EA] bg-white px-5 py-4 text-sm text-[#23424D] shadow-xl"
         >
           <NoticeIcon
             size={19}

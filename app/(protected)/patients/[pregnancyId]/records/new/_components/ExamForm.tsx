@@ -17,13 +17,13 @@ import {
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
 import { findDoctorPatient } from "@/lib/doctor";
-import { DEMO_DATE } from "@/app/_data/doctor-demo";
+import { todayKST } from "@/lib/doctor";
+const TODAY_DATE = todayKST();
 
 export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
   const { state, saveExam, notify } = useDoctor();
   const router = useRouter();
   const [schedule, setSchedule] = useState(false);
-  const [saving, setSaving] = useState(false);
   const patient = findDoctorPatient(state, pregnancyId);
   if (!patient || patient.connection !== "approved")
     return <PatientUnavailable />;
@@ -48,7 +48,6 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
       notify("다음 방문일은 검진일 이후로 선택해 주세요.", "error");
       return;
     }
-    setSaving(true);
     try {
       saveExam({
         patientId,
@@ -68,7 +67,6 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
         error instanceof Error ? error.message : "입력 내용을 확인해 주세요.",
         "error",
       );
-      setSaving(false);
     }
   }
   return (
@@ -89,7 +87,7 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
                   type="date"
                   name="visitedAt"
                   required
-                  defaultValue={DEMO_DATE}
+                  defaultValue={TODAY_DATE}
                   className={inputClass}
                 />
               </Field>
@@ -190,15 +188,12 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
             )}
           </Card>
           <div className="flex justify-end gap-3">
-            <LinkButton
-              href={`/patients/${patient.id}/records`}
-              secondary
-            >
+            <LinkButton href={`/patients/${patient.id}/records`} secondary>
               취소
             </LinkButton>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled title="검진 저장 API 연결 예정">
               <Save size={16} />
-              {saving ? "저장 중" : "검진 기록 저장"}
+              검진 저장 API 연결 예정
             </Button>
           </div>
         </div>
@@ -210,7 +205,7 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
             <li>
               <p className="font-semibold">01 · 검진 기록 저장</p>
               <p className="mt-2 text-xs leading-6 text-[#8A9EA9]">
-                작성한 검진과 다음 일정이 시연 화면에 반영됩니다.
+                검진 저장 API 연결 후 기록과 다음 일정을 저장합니다.
               </p>
             </li>
             <li>
