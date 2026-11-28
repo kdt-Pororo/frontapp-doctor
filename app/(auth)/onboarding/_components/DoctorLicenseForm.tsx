@@ -59,9 +59,13 @@ export default function DoctorLicenseForm() {
         try {
             await submitDoctorApplicationApi(draft, evidence.file);
             clearDraft();
+            setConfirmed(false);
+            setError("");
             router.replace("/verification");
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : "신청을 제출하지 못했습니다. 다시 시도해 주세요.");
+        } finally {
+            // 재제출로 돌아올 때도 이미지 선택이 가능하도록 성공·실패 모두 해제합니다.
             setSubmitting(false);
         }
     }
