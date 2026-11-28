@@ -64,7 +64,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="grid min-h-screen min-w-330 grid-cols-[240px_minmax(0,1fr)] bg-[#F4F7F9] font-pretendard text-[#294451]">
-      <aside className="sticky top-0 flex h-screen flex-col bg-[#1B3E59] px-5 py-7 text-white">
+      <aside className="sticky top-0 flex h-screen flex-col bg-[#122E3D] px-5 py-7 text-white">
         <Link
           href="/dashboard"
           className="mb-12 flex items-center gap-2.5 px-3 text-[23px] font-bold tracking-wide"
@@ -78,7 +78,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
           />
           NESTEP
         </Link>
-        <p className="mb-4 px-4 text-[10px] font-semibold tracking-[0.16em] text-[#A8C3D3]">
+        <p className="mb-4 px-4 text-[10px] font-semibold tracking-[0.16em] text-[#64808F]">
           의료진 워크스페이스
         </p>
         <nav aria-label="의료진 메뉴" className="space-y-2">
@@ -87,7 +87,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
               key={href}
               href={href}
               aria-current={active === href ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-colors ${active === href ? "bg-[#2A5573] text-white" : "text-[#BDD3DF] hover:bg-[#244963] hover:text-white"}`}
+              className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-colors ${active === href ? "bg-[#204653] text-[#D6F5ED]" : "text-[#8CA7B5] hover:bg-[#1B3C4B] hover:text-white"}`}
             >
               <Icon size={18} />
               {label}
@@ -97,33 +97,33 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-9 rounded-xl border border-[#3B5D75] bg-[#244963] p-4">
-          <p className="text-xs font-semibold text-[#E3EFF5]">
+        <div className="mt-9 rounded-xl border border-[#2A4957] bg-[#173746] p-4">
+          <p className="text-xs font-semibold text-[#9CBBC4]">
             함께 기록하는 진료
           </p>
-          <p className="mt-2 text-xs leading-6 text-[#B4CEDD]">
+          <p className="mt-2 text-xs leading-6 text-[#668895]">
             산모의 일상 기록부터
             <br />
             검진 이후의 변화까지.
           </p>
           <Link
             href="/patients/connect"
-            className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[#8DE1D5]"
+            className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[#61C5B9]"
           >
             새로운 산모 연결
             <ArrowUpRight size={14} />
           </Link>
         </div>
-        <div className="mt-auto border-t border-[#3B5D75] px-3 pt-6">
+        <div className="mt-auto border-t border-[#294755] px-3 pt-6">
           <Link href="/my" className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-[#2A5573] font-semibold text-[#DFEEF5]">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#274653] font-semibold text-[#A1C5CC]">
               {state.profile.name.slice(0, 1)}
             </span>
             <div>
               <p className="text-sm font-semibold">
                 {state.profile.name} 의료진
               </p>
-              <p className="mt-1 text-[11px] text-[#ADC8D8]">
+              <p className="mt-1 text-[11px] text-[#7894A2]">
                 {state.profile.hospital}
               </p>
             </div>
@@ -131,7 +131,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={logout}
-            className="mt-5 flex items-center gap-2 text-xs text-[#ADC8D8]"
+            className="mt-5 flex items-center gap-2 text-xs text-[#7894A2]"
           >
             <LogOut size={14} />
             로그아웃
