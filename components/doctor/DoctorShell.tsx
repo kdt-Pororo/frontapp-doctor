@@ -12,6 +12,7 @@ import {
   LogOut,
   Settings2,
   UsersRound,
+  Search,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useDoctor } from "./DoctorProvider";
@@ -20,6 +21,7 @@ import { Card, LinkButton } from "./DoctorUI";
 const links = [
   { label: "대시보드", href: "/dashboard", icon: LayoutDashboard },
   { label: "담당 산모", href: "/patients", icon: UsersRound },
+  { label: "산모 조회", href: "/directory", icon: Search },
   { label: "연결 요청", href: "/patients/connect", icon: Link2 },
   { label: "내 프로필", href: "/my", icon: Settings2 },
 ];
@@ -36,28 +38,36 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
       notify("로그아웃하지 못했습니다. 다시 시도해 주세요.", "error");
     }
   }
-  const active = pathname.includes("/connect")
-    ? "/patients/connect"
-    : pathname.includes("/patients")
-      ? "/patients"
-      : pathname.includes("/my")
-        ? "/my"
-        : "/dashboard";
-  const title = pathname.includes("/appointments")
-    ? "방문 일정"
-    : pathname.includes("/records/") && pathname.endsWith("/edit")
-      ? "검진 정정"
-      : pathname.includes("/records/") && pathname.endsWith("/history")
-        ? "검진 정정 이력"
-        : pathname.includes("/records/new")
-          ? "검진 입력"
-          : pathname.includes("/risks")
-            ? "위험도 추이"
-            : pathname.includes("/end-request")
-              ? "임신 종료"
-              : pathname.includes("/records")
-                ? "기록 조회"
-                : links.find((item) => item.href === active)?.label;
+  const active = pathname.startsWith("/directory")
+    ? "/directory"
+    : pathname.includes("/connect")
+      ? "/patients/connect"
+      : pathname.includes("/patients")
+        ? "/patients"
+        : pathname.includes("/my")
+          ? "/my"
+          : "/dashboard";
+  const title = pathname.startsWith("/directory")
+    ? pathname.endsWith("/history")
+      ? "공유 검진 이력"
+      : pathname === "/directory"
+        ? "산모 조회"
+        : "공유 검진 기록"
+    : pathname.includes("/appointments")
+      ? "방문 일정"
+      : pathname.includes("/records/") && pathname.endsWith("/edit")
+        ? "검진 정정"
+        : pathname.includes("/records/") && pathname.endsWith("/history")
+          ? "검진 정정 이력"
+          : pathname.includes("/records/new")
+            ? "검진 입력"
+            : pathname.includes("/risks")
+              ? "위험도 추이"
+              : pathname.includes("/end-request")
+                ? "임신 종료"
+                : pathname.includes("/records")
+                  ? "기록 조회"
+                  : links.find((item) => item.href === active)?.label;
 
   if (state.profile.verification !== "verified")
     return (

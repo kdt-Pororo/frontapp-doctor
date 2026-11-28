@@ -12,6 +12,7 @@ import {
 import { Badge, Button, Card, LinkButton } from "@/components/doctor/DoctorUI";
 import { findDoctorPatient, doctorDate } from "@/lib/doctor";
 import { appointmentDate } from "@/lib/doctor-appointment";
+import { getSharedHistoryApi } from "@/api/doctor/record-access.api";
 import type {
   RecordHistory as HistoryDTO,
   FeatureSchemaDTO,
@@ -42,28 +43,37 @@ function output(run: RiskPredictionDTO) {
 export default function RecordHistory({
   pregnancyId,
   recordId,
+  sharedAccess = false,
 }: {
   pregnancyId: string;
   recordId: string;
+  sharedAccess?: boolean;
 }) {
   const { state } = useDoctor();
   const patient = findDoctorPatient(state, pregnancyId);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [selectedVersion, setSelectedVersion] = useState<number>();
-  const key = `${pregnancyId}:${recordId}:${page}:${revision}`;
+  const key = `${sharedAccess}:${pregnancyId}:${recordId}:${page}:${revision}`;
   const [result, setResult] = useState<{
     key: string;
     data?: HistoryDTO;
     schema?: FeatureSchemaDTO;
     error?: string;
   }>();
-  const enabled = Boolean(patient);
+  const enabled = sharedAccess || Boolean(patient);
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
     Promise.all([
-      getRecordHistoryApi(pregnancyId, recordId, page, controller.signal),
+      sharedAccess
+        ? getSharedHistoryApi(
+            pregnancyId,
+            recordId,
+            page,
+            controller.signal,
+          ).then((result) => result.history)
+        : getRecordHistoryApi(pregnancyId, recordId, page, controller.signal),
       getFeatureSchemaApi(controller.signal),
     ])
       .then(([data, schema]) => {
@@ -80,7 +90,7 @@ export default function RecordHistory({
           });
       });
     return () => controller.abort();
-  }, [pregnancyId, recordId, page, key, enabled]);
+  }, [pregnancyId, recordId, page, key, enabled, sharedAccess]);
   const current = result?.key === key ? result : undefined;
   const data = current?.data;
   const selected =
@@ -108,10 +118,16 @@ export default function RecordHistory({
         : field === "visited_at" && typeof raw === "string"
           ? appointmentDate(raw)
           : String(raw);
-  if (!patient) return <PatientUnavailable />;
+  if (!sharedAccess && !patient) return <PatientUnavailable />;
   return (
     <>
-      <PatientNavigation patient={patient} />
+      {!sharedAccess && patient ? (
+        <PatientNavigation patient={patient} />
+      ) : (
+        <div className="mb-6 rounded-xl bg-[#EAF6F2] p-5 text-sm">
+          공유 검진 정정 이력 · 승인된 기간 내 읽기 전용 열람
+        </div>
+      )}
       <div className="mb-6 flex items-center justify-between gap-5">
         <div>
           <h2 className="text-xl font-semibold">
@@ -126,7 +142,11 @@ export default function RecordHistory({
             최신 이력 확인
           </Button>
           <LinkButton
-            href={`/patients/${pregnancyId}/records?recordId=${recordId}`}
+            href={
+              sharedAccess
+                ? `/directory/${pregnancyId}?recordId=${recordId}`
+                : `/patients/${pregnancyId}/records?recordId=${recordId}`
+            }
             secondary
           >
             현재 기록 보기
