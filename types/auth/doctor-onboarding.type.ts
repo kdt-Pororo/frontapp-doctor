@@ -3,7 +3,6 @@ export interface DoctorAdditionalFormValues {
     doctor_name: string;
     doctor_email: string;
     doctor_phone: string;
-    doctor_profession: string;
     doctor_hospital: string;
     doctor_license_number: string;
     confirmed_information: boolean;
