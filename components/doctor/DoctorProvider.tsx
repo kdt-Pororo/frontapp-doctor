@@ -14,7 +14,6 @@ import type { DoctorCareRequestDTO } from "@/types/doctor/doctor-patient.type";
 import type {
   DoctorWorkspaceState,
   DoctorProfile,
-  ExamInput,
 } from "@/types/doctor/doctor.type";
 
 const emptyState: DoctorWorkspaceState = {
@@ -28,12 +27,6 @@ const emptyState: DoctorWorkspaceState = {
     verification: "pending",
   },
   patients: [],
-  records: [],
-  appointments: [],
-  symptoms: [],
-  observations: [],
-  connectionRequests: [],
-  endRequests: [],
 };
 
 interface DoctorContextValue {
@@ -44,8 +37,6 @@ interface DoctorContextValue {
   refreshConnections: () => void;
   updateProfile: (profile: DoctorProfile) => void;
   notify: (message: string, tone?: "success" | "info" | "error") => void;
-  saveExam: (input: ExamInput) => void;
-  revokeCare: (id: string) => void;
 }
 
 const DoctorContext = createContext<DoctorContextValue | null>(null);
@@ -137,12 +128,6 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
   ) {
     setNotice({ message, tone });
   }
-  function unavailable() {
-    notify("이 기능은 백엔드 연결 후 사용할 수 있습니다.", "info");
-  }
-  function saveExam() {
-    throw new Error("검진 저장 API는 아직 연결되지 않았습니다.");
-  }
   const NoticeIcon =
     notice?.tone === "error"
       ? CircleAlert
@@ -160,8 +145,6 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
         refreshConnections,
         updateProfile,
         notify,
-        saveExam,
-        revokeCare: unavailable,
       }}
     >
       {children}

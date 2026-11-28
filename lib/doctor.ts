@@ -25,20 +25,3 @@ export function todayKST() {
 export function weekLabel(patient: DoctorPatient) {
   return `${patient.weeks}주 ${patient.days}일`;
 }
-export function nextAppointment(
-  state: DoctorWorkspaceState,
-  patientId: string,
-) {
-  return state.appointments
-    .filter(
-      (item) => item.patientId === patientId && item.status === "scheduled",
-    )
-    .sort((a, b) =>
-      `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`),
-    )[0];
-}
-export function latestExam(state: DoctorWorkspaceState, patientId: string) {
-  return state.records
-    .filter((item) => item.patientId === patientId)
-    .sort((a, b) => b.visitedAt.localeCompare(a.visitedAt))[0];
-}

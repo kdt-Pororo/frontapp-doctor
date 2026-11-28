@@ -44,7 +44,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
         ? "/my"
         : "/dashboard";
   const title = pathname.includes("/records/new")
-    ? "검진·일정 입력"
+    ? "검진 입력"
     : pathname.includes("/risks")
       ? "위험도 추이"
       : pathname.includes("/end-request")

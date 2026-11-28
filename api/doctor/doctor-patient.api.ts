@@ -3,7 +3,7 @@ import type { DoctorConnectionsDTO } from "@/types/doctor/doctor-patient.type";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "");
 
-async function request<T>(
+export async function doctorWorkspaceRequest<T>(
   path: string,
   method = "GET",
   data?: unknown,
@@ -29,15 +29,22 @@ async function request<T>(
       response.status,
       typeof body?.detail === "string"
         ? body.detail
-        : "연결 정보를 불러오지 못했습니다.",
+        : typeof body?.detail?.[0]?.msg === "string"
+          ? body.detail[0].msg.replace(/^Value error, /, "")
+          : "요청을 처리하지 못했습니다.",
     );
   if (!body?.success) throw new Error("연결 응답을 확인하지 못했습니다.");
   return body.data;
 }
 
 export const getDoctorConnectionsApi = (signal?: AbortSignal) =>
-  request<DoctorConnectionsDTO>("/connections", "GET", undefined, signal);
+  doctorWorkspaceRequest<DoctorConnectionsDTO>(
+    "/connections",
+    "GET",
+    undefined,
+    signal,
+  );
 export const decideCareRequestApi = (
   id: number,
   decision: "APPROVED" | "REJECTED",
-) => request(`/requests/${id}/decision`, "POST", { decision });
+) => doctorWorkspaceRequest(`/requests/${id}/decision`, "POST", { decision });

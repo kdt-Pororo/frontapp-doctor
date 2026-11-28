@@ -121,8 +121,8 @@ export default function Dashboard() {
         </Card>
         <Card title="검진 기록">
           <EmptyState
-            title="검진 기록 API 연결 예정"
-            description="실제 검진 기록 연결 후 이곳에 표시됩니다."
+            title="담당 산모별 검진 기록"
+            description="담당 산모를 선택하면 저장한 검진값과 원본 메모를 확인할 수 있습니다."
           />
         </Card>
       </div>

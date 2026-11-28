@@ -30,7 +30,7 @@ export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
             ) : (
               <LinkButton href={`${base}/records/new`}>
                 <Plus size={16} />
-                검진·일정 입력
+                검진 입력
               </LinkButton>
             )}
           </>

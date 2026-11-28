@@ -1,274 +1,174 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import {
-  ArrowRight,
-  CalendarDays,
-  ChevronRight,
-  Clock3,
-  FileText,
-  Link2,
-  NotebookPen,
-  TrendingUp,
-} from "lucide-react";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
 import {
   PatientNavigation,
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
-import {
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  EmptyState,
-  LinkButton,
-} from "@/components/doctor/DoctorUI";
-import {
-  doctorDate,
-  findDoctorPatient,
-  latestExam,
-  nextAppointment,
-  weekLabel,
-} from "@/lib/doctor";
+import { Badge, Card, EmptyState } from "@/components/doctor/DoctorUI";
+import { findDoctorPatient, doctorDate, weekLabel } from "@/lib/doctor";
+import usePatientRecords from "./usePatientRecords";
 
 export default function PatientOverview({
   pregnancyId,
 }: {
   pregnancyId: string;
 }) {
-  const { state, revokeCare } = useDoctor();
-  const [showDisconnect, setShowDisconnect] = useState(false);
+  const { state } = useDoctor();
   const patient = findDoctorPatient(state, pregnancyId);
-  if (!patient || patient.connection !== "approved")
-    return <PatientUnavailable />;
-  const exam = latestExam(state, patient.id);
-  const next = nextAppointment(state, patient.id);
-  const symptoms = state.symptoms
-    .filter((item) => item.patientId === patient.id)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 2);
-  const base = `/patients/${patient.id}`;
-  const facts = [
-    { label: "현재 임신 주수", value: weekLabel(patient), icon: Clock3 },
-    {
-      label: "출산 예정일",
-      value: doctorDate(patient.dueDate),
-      icon: CalendarDays,
-    },
-    {
-      label: "최근 검진",
-      value: exam ? doctorDate(exam.visitedAt) : "API 연결 예정",
-      icon: FileText,
-    },
-  ];
-
+  const { records, loading, error, refresh } = usePatientRecords(
+    pregnancyId,
+    Boolean(patient),
+  );
+  if (!patient) return <PatientUnavailable />;
+  const latest = records.at(-1);
   return (
     <>
       <PatientNavigation patient={patient} />
       <div className="mb-6 grid grid-cols-3 gap-5">
-        {facts.map(({ label, value, icon: Icon }) => (
-          <div
-            key={label}
-            className="flex items-center gap-4 rounded-2xl border border-[#E1E8EC] bg-white p-5"
+        {[
+          { label: "현재 임신 주수", value: weekLabel(patient) },
+          { label: "출산 예정일", value: doctorDate(patient.dueDate) },
+          {
+            label: "최근 검진",
+            value: loading
+              ? "확인 중"
+              : error
+                ? "조회 실패"
+                : latest
+                  ? doctorDate(latest.visited_at)
+                  : "기록 없음",
+          },
+        ].map((item) => (
+          <section
+            key={item.label}
+            className="rounded-2xl border border-[#E0E8EC] bg-white p-6"
           >
-            <span className="rounded-xl bg-[#F1F6F7] p-3 text-[#7F9DAA]">
-              <Icon size={20} />
-            </span>
-            <div>
-              <p className="text-xs text-[#8CA0AB]">{label}</p>
-              <p className="mt-2 text-xl font-semibold text-[#35525F]">
-                {value}
-              </p>
-            </div>
-          </div>
+            <p className="text-xs text-[#879BA6]">{item.label}</p>
+            <p className="mt-3 text-xl font-semibold text-[#35525F]">
+              {item.value}
+            </p>
+          </section>
         ))}
       </div>
-      <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] gap-6">
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 flex items-center justify-between rounded-xl bg-red-50 p-5 text-sm text-red-700"
+        >
+          <span>{error}</span>
+          <button type="button" onClick={refresh} className="underline">
+            다시 시도
+          </button>
+        </div>
+      )}
+      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] items-start gap-6">
         <div className="space-y-6">
-          <Card
-            title="공유된 산모 증상"
-            description="산모가 기록한 내용을 읽기 전용으로 확인합니다."
-            action={
-              <Link href={`${base}/records`} className="text-xs text-[#509C90]">
-                전체 보기
-              </Link>
-            }
-          >
-            {symptoms.length ? (
-              <div className="space-y-4">
-                {symptoms.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-xl bg-[#F7FAFB] p-5"
-                  >
-                    <div className="mb-2 flex items-center gap-2 text-xs text-[#9CAEB7]">
-                      <NotebookPen size={13} />
-                      {doctorDate(item.date)}
-                    </div>
-                    <h3 className="text-sm font-semibold">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-7 text-[#7E939F]">
-                      {item.content}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="증상 기록 API 연결 예정" />
-            )}
-          </Card>
           <Card
             title="최근 검진 기록"
             action={
               <Link
-                href={`${base}/records`}
-                className="inline-flex items-center gap-1 text-xs text-[#509C90]"
+                href={`/patients/${pregnancyId}/records`}
+                className="text-sm text-[#168B86]"
               >
-                기록 보기
-                <ChevronRight size={13} />
+                기록 조회
               </Link>
             }
           >
-            {exam ? (
+            {loading ? (
+              <p role="status" className="py-8 text-sm text-[#879BA6]">
+                검진 기록을 확인하고 있습니다.
+              </p>
+            ) : latest ? (
               <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-[#9AAAB4]">
-                    {doctorDate(exam.visitedAt)}
-                  </p>
-                  <Badge
-                    tone={
-                      exam.predictionStatus === "demo" ? "purple" : "neutral"
-                    }
-                  >
-                    {exam.predictionStatus === "demo"
-                      ? "시연 예측 이력"
-                      : "모델 준비 중"}
-                  </Badge>
-                </div>
-                <h3 className="mt-3 font-semibold">{exam.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#7F929E]">
-                  {exam.notes}
+                <p className="text-xs text-[#879BA6]">
+                  {doctorDate(latest.visited_at)} · #{latest.id}
                 </p>
-                <div className="mt-5 flex gap-6 border-t border-[#EDF1F3] pt-4 text-xs text-[#8B9EA8]">
-                  <span>
-                    혈압{" "}
-                    <strong className="ml-2 font-medium text-[#587583]">
-                      {exam.bloodPressure || "—"} mmHg
-                    </strong>
-                  </span>
-                  <span>
-                    체중{" "}
-                    <strong className="ml-2 font-medium text-[#587583]">
-                      {exam.weight || "—"} kg
-                    </strong>
-                  </span>
-                </div>
+                <h2 className="mt-3 font-semibold">{latest.title}</h2>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#6F8793]">
+                  {latest.notes || "검진 내용 미입력"}
+                </p>
+                <dl className="mt-5 flex flex-wrap gap-6 border-t border-[#E7EDF1] pt-5 text-sm">
+                  <div>
+                    <dt className="text-xs text-[#879BA6]">혈압</dt>
+                    <dd className="mt-2">
+                      {latest.feature_values.systolic_bp_mmhg ?? "—"}/
+                      {latest.feature_values.diastolic_bp_mmhg ?? "—"} mmHg
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-[#879BA6]">체중</dt>
+                    <dd className="mt-2">
+                      {latest.feature_values.maternal_weight_kg ?? "—"} kg
+                    </dd>
+                  </div>
+                </dl>
               </>
             ) : (
-              <EmptyState title="검진 기록 API 연결 예정" />
+              !error && (
+                <EmptyState
+                  title="저장된 검진 기록이 없습니다"
+                  description="새 검진 기록을 저장하면 이곳에 표시됩니다."
+                />
+              )
             )}
+          </Card>
+          <Card title="연락처">
+            <div className="flex items-center justify-between border-b border-[#E7EDF1] pb-5">
+              <span className="text-sm text-[#879BA6]">
+                산모 · {patient.name}
+              </span>
+              <span className="font-medium">
+                {patient.phone || "연락처 미등록"}
+              </span>
+            </div>
+            <p className="mt-5 text-sm text-[#879BA6]">
+              보호자 연락처는 연결 범위 확인 후 별도로 제공할 예정입니다.
+            </p>
+          </Card>
+          <Card title="공유된 산모 증상">
+            <EmptyState
+              title="증상 기록 연결 예정"
+              description="산모가 공유한 증상 기록은 후속 단계에서 연결합니다."
+            />
           </Card>
         </div>
         <div className="space-y-6">
-          <Card
-            title="다음 방문 일정"
-            action={<CalendarDays size={18} className="text-[#8BACB4]" />}
-          >
-            {next && patient.status === "active" ? (
-              <>
-                <p className="text-2xl font-semibold text-[#335A65]">
-                  {doctorDate(next.date)}
-                </p>
-                <p className="mt-3 flex items-center gap-2 text-sm text-[#7B929E]">
-                  <Clock3 size={15} />
-                  {next.time} · {next.title}
-                </p>
-                <div className="mt-5">
-                  <Badge>방문 예정</Badge>
-                </div>
-              </>
-            ) : (
-              <p className="py-5 text-sm text-[#96A7B1]">
-                방문 일정 API 연결 예정입니다.
-              </p>
-            )}
-          </Card>
-          <Card title="위험도 변화 이력">
-            <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-[#EEECF8] text-[#A28CCB]">
-              <TrendingUp size={22} />
-            </div>
-            <p className="text-sm leading-7 text-[#8B9CA5]">
-              검진일별 산모 건강·조산 모델의 결과와 입력 기록을 확인합니다.
+          <Card title="입력값·위험 분석">
+            <p className="text-sm leading-7 text-[#6F8793]">
+              검진 날짜를 선택해 측정값과 이전 검진 대비 변화를 확인하고 의료진
+              검토 내용을 남깁니다.
+            </p>
+            <p className="mt-4 text-xs text-[#879BA6]">
+              모델 미연결 · 예측값은 생성하지 않습니다.
             </p>
             <Link
-              href={`${base}/risks`}
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#599A8F]"
+              href={`/patients/${pregnancyId}/risks`}
+              className="mt-6 inline-block text-sm font-semibold text-[#168B86]"
             >
-              추이 살펴보기
-              <ArrowRight size={15} />
+              위험 분석 열기
             </Link>
           </Card>
+          <Card title="다음 방문 일정">
+            <p className="text-sm text-[#879BA6]">
+              방문 일정 API 연결 예정입니다.
+            </p>
+          </Card>
           <Card title="연결 및 관리 상태">
-            <div className="flex items-center gap-2 text-sm text-[#6E8C97]">
-              <Link2 size={15} />
-              <span>산모 요청 · 의료진 수락 완료</span>
-            </div>
+            <p className="text-sm text-[#6F8793]">
+              산모 요청 · 의료진 수락 완료
+            </p>
             <div className="mt-4">
               <Badge tone={patient.status === "active" ? "teal" : "neutral"}>
                 {patient.status === "active"
                   ? "관리 중"
-                  : `관리 종료 ${doctorDate(patient.endedOn ?? "")}`}
+                  : "관리 종료 · 열람 전용"}
               </Badge>
-            </div>
-            <div className="mt-5 border-t border-[#EDF1F3] pt-4">
-              <button
-                type="button"
-                disabled
-                title="연결 해제 API 연결 예정"
-                className="text-xs text-[#A0AEB5] underline-offset-4 hover:underline"
-              >
-                담당 연결 해제 (연결 예정)
-              </button>
             </div>
           </Card>
         </div>
       </div>
-      {showDisconnect && (
-        <Dialog
-          title="담당 연결을 해제할까요?"
-          onClose={() => setShowDisconnect(false)}
-        >
-          <p className="text-sm leading-7 text-[#7F949E]">
-            {patient.name} 산모의 담당 기록에 더 이상 접근하지 않습니다. 산모의
-            임신 상태와 개인 기록은 유지됩니다.
-          </p>
-          <div className="mt-7 flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setShowDisconnect(false)}
-            >
-              돌아가기
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                revokeCare(patient.id);
-                setShowDisconnect(false);
-              }}
-            >
-              연결 해제
-            </Button>
-          </div>
-        </Dialog>
-      )}
-      {patient.status === "active" && !exam && (
-        <div className="mt-6">
-          <LinkButton href={`${base}/records/new`}>
-            첫 검진 기록 작성
-          </LinkButton>
-        </div>
-      )}
     </>
   );
 }
