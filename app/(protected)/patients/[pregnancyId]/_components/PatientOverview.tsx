@@ -15,6 +15,7 @@ import {
 } from "@/lib/doctor";
 import usePatientRecords from "./usePatientRecords";
 import NextAppointment from "./NextAppointment";
+import SharedPatientInfo from "./SharedPatientInfo";
 
 export default function PatientOverview({
   pregnancyId,
@@ -126,25 +127,7 @@ export default function PatientOverview({
               )
             )}
           </Card>
-          <Card title="연락처">
-            <div className="flex items-center justify-between border-b border-[#E7EDF1] pb-5">
-              <span className="text-sm text-[#879BA6]">
-                산모 · {patient.name}
-              </span>
-              <span className="font-medium">
-                {patient.phone || "연락처 미등록"}
-              </span>
-            </div>
-            <p className="mt-5 text-sm text-[#879BA6]">
-              보호자 연락처는 연결 범위 확인 후 별도로 제공할 예정입니다.
-            </p>
-          </Card>
-          <Card title="공유된 산모 증상">
-            <EmptyState
-              title="증상 기록 연결 예정"
-              description="산모가 공유한 증상 기록은 후속 단계에서 연결합니다."
-            />
-          </Card>
+          <SharedPatientInfo key={patient.id} patient={patient} />
         </div>
         <div className="space-y-6">
           <Card title="입력값·위험 분석">
