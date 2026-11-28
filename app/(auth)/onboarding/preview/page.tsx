@@ -1,5 +1,5 @@
-import DoctorVerificationPreview from "../_components/DoctorVerificationPreview";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-    return <DoctorVerificationPreview />;
+    redirect("/verification");
 }

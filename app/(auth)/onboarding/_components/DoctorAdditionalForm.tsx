@@ -1,18 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/doctor/DoctorUI";
 import type { DoctorAdditionalFormValues } from "@/types/auth/doctor-onboarding.type";
 import { useDoctorOnboarding } from "./DoctorOnboardingProvider";
 import DoctorOnboardingHeader from "./DoctorOnboardingHeader";
 import DoctorOnboardingCancel from "./DoctorOnboardingCancel";
+import HospitalSelect from "./HospitalSelect";
 
 const fields = [
     { name: "doctor_name", label: "실명", placeholder: "면허증에 기재된 실명", max: 40, autoComplete: "name" },
     { name: "doctor_phone", label: "연락처", placeholder: "010-0000-0000", max: 20, autoComplete: "tel" },
-    { name: "doctor_hospital", label: "소속 병원", placeholder: "소속 병원명", max: 200, autoComplete: "organization" },
     { name: "doctor_license_number", label: "면허번호", placeholder: "면허증에 기재된 번호", max: 100, autoComplete: "off" },
 ] as const;
 
@@ -22,10 +22,11 @@ const onboardingInputClass = "h-13 w-full rounded-xl border border-[#DCE5E9] bg-
 export default function DoctorAdditionalForm() {
     const router = useRouter();
     const { identity, draft, setDraft } = useDoctorOnboarding();
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<DoctorAdditionalFormValues>({
+    const { register, handleSubmit, control, setValue, formState: { errors, isSubmitting } } = useForm<DoctorAdditionalFormValues>({
         mode: "onTouched",
-        defaultValues: draft ?? { doctor_name: "", doctor_email: identity.doctor_email ?? "", doctor_phone: "", doctor_hospital: "", doctor_license_number: "", confirmed_information: false },
+        defaultValues: draft ?? { doctor_name: "", doctor_email: identity.doctor_email ?? "", doctor_phone: "", doctor_hospital: "", hospital_id: null, doctor_license_number: "", confirmed_information: false },
     });
+    const [hospitalName, hospitalId] = useWatch({control, name: ["doctor_hospital", "hospital_id"]});
 
     function onSubmit(values: DoctorAdditionalFormValues) {
         // 다음 화면으로 전달만 합니다. 가입 API와 이미지 전송은 아직 호출하지 않습니다.
@@ -53,6 +54,13 @@ export default function DoctorAdditionalForm() {
                     })} />
                     {errors[field.name] && <p id={`${field.name}_error`} role="alert" className="mt-2 text-xs text-red-600">{errors[field.name]?.message}</p>}
                 </div>)}
+                <div>
+                    <label htmlFor="doctor_hospital" className="mb-3 block text-base font-medium">소속 병원 <span className="text-[#168B86]">*</span></label>
+                    <input type="hidden" {...register("hospital_id", {validate: (value) => (value !== null && value > 0) || "검색 결과에서 병원을 선택해 주세요."})} />
+                    <HospitalSelect name={hospitalName} selectedId={hospitalId} invalid={Boolean(errors.hospital_id)} inputClass={onboardingInputClass}
+                        onChange={(id, name) => {setValue("hospital_id", id, {shouldValidate: true});setValue("doctor_hospital", name);}} />
+                    {errors.hospital_id && <p role="alert" className="mt-2 text-xs text-red-600">{errors.hospital_id.message}</p>}
+                </div>
             </div>
             <label className="mt-8 flex items-start gap-3 text-base leading-7 text-[#617A87]"><input type="checkbox" className="mt-1 size-5 accent-[#168B86]" {...register("confirmed_information", { required: "본인 정보 여부를 확인해 주세요." })} />입력한 내용이 본인의 의료진 정보임을 확인합니다.</label>
             {errors.confirmed_information && <p role="alert" className="mt-2 text-xs text-red-600">{errors.confirmed_information.message}</p>}
