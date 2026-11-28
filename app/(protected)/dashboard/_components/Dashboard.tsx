@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TodayAppointments from "./TodayAppointments";
 import { ArrowRight, Link2, UsersRound } from "lucide-react";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
 import {
@@ -113,12 +114,7 @@ export default function Dashboard() {
             </LinkButton>
           </div>
         </Card>
-        <Card title="방문 일정">
-          <EmptyState
-            title="방문 일정 API 연결 예정"
-            description="실제 일정 연결 후 이곳에 표시됩니다."
-          />
-        </Card>
+        <TodayAppointments />
         <Card title="검진 기록">
           <EmptyState
             title="담당 산모별 검진 기록"

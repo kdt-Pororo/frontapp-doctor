@@ -136,7 +136,7 @@ export default function RiskReviewPanel({
       <div className="mt-5 flex justify-end">
         <Button onClick={save} disabled={readonly || busy}>
           {readonly
-            ? "관리 종료 · 열람 전용"
+            ? "이전 임신 · 열람 전용"
             : busy
               ? "저장 중…"
               : "검토 내용 저장"}

@@ -43,15 +43,17 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
       : pathname.includes("/my")
         ? "/my"
         : "/dashboard";
-  const title = pathname.includes("/records/new")
-    ? "검진 입력"
-    : pathname.includes("/risks")
-      ? "위험도 추이"
-      : pathname.includes("/end-request")
-        ? "임신 관리 종료"
-        : pathname.includes("/records")
-          ? "기록 조회"
-          : links.find((item) => item.href === active)?.label;
+  const title = pathname.includes("/appointments")
+    ? "방문 일정"
+    : pathname.includes("/records/new")
+      ? "검진 입력"
+      : pathname.includes("/risks")
+        ? "위험도 추이"
+        : pathname.includes("/end-request")
+          ? "임신 관리 종료"
+          : pathname.includes("/records")
+            ? "기록 조회"
+            : links.find((item) => item.href === active)?.label;
 
   if (state.profile.verification !== "verified")
     return (

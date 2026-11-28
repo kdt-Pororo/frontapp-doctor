@@ -10,13 +10,15 @@ import { Badge, PageHeader, LinkButton, EmptyState } from "./DoctorUI";
 export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
   const pathname = usePathname();
   const base = `/patients/${patient.id}`;
-  const active = pathname.includes("/risks")
-    ? "risks"
-    : pathname.includes("/records")
-      ? "records"
-      : pathname.includes("/end-request")
-        ? "end-request"
-        : "overview";
+  const active = pathname.includes("/appointments")
+    ? "appointments"
+    : pathname.includes("/risks")
+      ? "risks"
+      : pathname.includes("/records")
+        ? "records"
+        : pathname.includes("/end-request")
+          ? "end-request"
+          : "overview";
   return (
     <>
       <PageHeader
@@ -26,7 +28,7 @@ export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
         action={
           <>
             {patient.status === "ended" ? (
-              <Badge tone="neutral">관리 종료 · 열람 전용</Badge>
+              <Badge tone="neutral">이전 임신 · 열람 전용</Badge>
             ) : (
               <LinkButton href={`${base}/records/new`}>
                 <Plus size={16} />
@@ -43,6 +45,11 @@ export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
         {[
           { key: "overview", label: "개요", href: base },
           { key: "records", label: "기록 조회", href: `${base}/records` },
+          {
+            key: "appointments",
+            label: "방문 일정",
+            href: `${base}/appointments`,
+          },
           { key: "risks", label: "위험도 추이", href: `${base}/risks` },
         ].map((tab) => (
           <Link
@@ -58,7 +65,7 @@ export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
           href={`${base}/end-request`}
           className="ml-auto inline-flex items-center gap-1 pb-4 text-xs text-[#9AA8AF]"
         >
-          관리 종료 요청
+          임신 종료 요청
           <ArrowUpRight size={12} />
         </Link>
       </nav>

@@ -94,6 +94,7 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
             status: patient.status,
             connection: "approved" as const,
             endedOn: patient.ended_on ?? undefined,
+            pregnancyStatus: patient.pregnancy_status,
           })),
         }));
       })

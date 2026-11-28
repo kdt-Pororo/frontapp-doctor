@@ -309,8 +309,14 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
           </Card>
           <Card title="다음 방문 일정">
             <p className="text-sm leading-7 text-[#879BA6]">
-              방문 일정 등록·수정은 별도 단계에서 연결합니다.
+              검진 기록과 방문 일정은 각각 저장합니다.
             </p>
+            <a
+              href={`/patients/${pregnancyId}/appointments`}
+              className="mt-4 inline-block text-sm font-semibold text-[#168B86]"
+            >
+              방문 일정 관리 →
+            </a>
           </Card>
         </aside>
       </form>

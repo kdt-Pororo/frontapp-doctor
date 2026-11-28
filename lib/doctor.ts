@@ -23,5 +23,13 @@ export function todayKST() {
   }).format(new Date());
 }
 export function weekLabel(patient: DoctorPatient) {
+  if (patient.weeks === null || patient.days === null) return "주수 기록 없음";
   return `${patient.weeks}주 ${patient.days}일`;
+}
+export function pregnancyStatusLabel(patient: DoctorPatient) {
+  return patient.status === "active"
+    ? "임신 중"
+    : patient.pregnancyStatus === "BIRTH"
+      ? "출산 완료"
+      : "임신 종료";
 }

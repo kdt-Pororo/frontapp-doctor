@@ -4,11 +4,12 @@ export interface DoctorPatientDTO {
   mother_name: string;
   mother_phone: string;
   baby_names: string[];
-  weeks: number;
-  days: number;
+  weeks: number | null;
+  days: number | null;
   due_date: string | null;
   status: "active" | "ended";
   ended_on: string | null;
+  pregnancy_status: string;
 }
 
 export interface DoctorCareRequestDTO {

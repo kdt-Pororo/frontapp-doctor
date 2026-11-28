@@ -14,13 +14,14 @@ export interface DoctorPatient {
   id: string;
   name: string;
   babyName: string;
-  weeks: number;
-  days: number;
+  weeks: number | null;
+  days: number | null;
   dueDate: string;
   phone: string;
   status: "active" | "ended";
   connection: "approved" | "pending" | "unlinked" | "revoked";
   endedOn?: string;
+  pregnancyStatus: string;
 }
 
 export interface DoctorWorkspaceState {

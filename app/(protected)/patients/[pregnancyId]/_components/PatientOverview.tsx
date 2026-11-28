@@ -7,8 +7,14 @@ import {
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
 import { Badge, Card, EmptyState } from "@/components/doctor/DoctorUI";
-import { findDoctorPatient, doctorDate, weekLabel } from "@/lib/doctor";
+import {
+  findDoctorPatient,
+  doctorDate,
+  weekLabel,
+  pregnancyStatusLabel,
+} from "@/lib/doctor";
 import usePatientRecords from "./usePatientRecords";
+import NextAppointment from "./NextAppointment";
 
 export default function PatientOverview({
   pregnancyId,
@@ -28,7 +34,13 @@ export default function PatientOverview({
       <PatientNavigation patient={patient} />
       <div className="mb-6 grid grid-cols-3 gap-5">
         {[
-          { label: "현재 임신 주수", value: weekLabel(patient) },
+          {
+            label:
+              patient.status === "ended"
+                ? "종료일 기준 주수"
+                : "현재 임신 주수",
+            value: weekLabel(patient),
+          },
           { label: "출산 예정일", value: doctorDate(patient.dueDate) },
           {
             label: "최근 검진",
@@ -150,20 +162,15 @@ export default function PatientOverview({
               위험 분석 열기
             </Link>
           </Card>
-          <Card title="다음 방문 일정">
-            <p className="text-sm text-[#879BA6]">
-              방문 일정 API 연결 예정입니다.
-            </p>
-          </Card>
+          <NextAppointment pregnancyId={pregnancyId} />
           <Card title="연결 및 관리 상태">
             <p className="text-sm text-[#6F8793]">
               산모 요청 · 의료진 수락 완료
             </p>
             <div className="mt-4">
               <Badge tone={patient.status === "active" ? "teal" : "neutral"}>
-                {patient.status === "active"
-                  ? "관리 중"
-                  : "관리 종료 · 열람 전용"}
+                {pregnancyStatusLabel(patient)}
+                {patient.status === "ended" && " · 열람 전용"}
               </Badge>
             </div>
           </Card>

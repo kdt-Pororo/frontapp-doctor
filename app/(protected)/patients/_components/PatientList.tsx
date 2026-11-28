@@ -11,7 +11,7 @@ import {
   LinkButton,
   PageHeader,
 } from "@/components/doctor/DoctorUI";
-import { doctorDate, weekLabel } from "@/lib/doctor";
+import { doctorDate, weekLabel, pregnancyStatusLabel } from "@/lib/doctor";
 
 export default function PatientList() {
   const { state, loading, loadError } = useDoctor();
@@ -38,8 +38,8 @@ export default function PatientList() {
         <div className="flex gap-7 border-b border-[#E8EEF1] px-6 pt-6">
           {(
             [
-              { key: "active", label: "관리 중" },
-              { key: "ended", label: "관리 종료" },
+              { key: "active", label: "현재 임신" },
+              { key: "ended", label: "이전 임신" },
             ] as const
           ).map((tab) => (
             <button
@@ -76,13 +76,18 @@ export default function PatientList() {
         <table className="w-full text-left text-sm">
           <thead className="border-y border-[#EDF1F3] bg-[#FAFBFC] text-xs text-[#8297A2]">
             <tr>
-              {["산모", "임신 주수", "출산 예정일", "상태", "상세"].map(
-                (label) => (
-                  <th key={label} className="px-6 py-4 font-medium">
-                    {label}
-                  </th>
-                ),
-              )}
+              {[
+                "산모",
+                filter === "ended" ? "종료일 기준 주수" : "임신 주수",
+                "출산 예정일",
+                ...(filter === "ended" ? ["종료일"] : []),
+                "임신 상태",
+                "상세",
+              ].map((label) => (
+                <th key={label} className="px-6 py-4 font-medium">
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-[#EDF1F3]">
@@ -97,9 +102,12 @@ export default function PatientList() {
                 </td>
                 <td className="px-6">{weekLabel(patient)}</td>
                 <td className="px-6">{doctorDate(patient.dueDate)}</td>
+                {filter === "ended" && (
+                  <td className="px-6">{doctorDate(patient.endedOn ?? "")}</td>
+                )}
                 <td className="px-6">
                   <Badge tone={filter === "ended" ? "neutral" : "teal"}>
-                    {filter === "ended" ? "관리 종료" : "관리 중"}
+                    {pregnancyStatusLabel(patient)}
                   </Badge>
                 </td>
                 <td className="px-6">
