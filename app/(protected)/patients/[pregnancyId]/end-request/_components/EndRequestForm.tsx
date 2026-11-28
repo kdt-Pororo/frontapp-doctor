@@ -1,248 +1,262 @@
 "use client";
-
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
+import { findDoctorPatient, doctorDate } from "@/lib/doctor";
+import {
+  PatientNavigation,
+  PatientUnavailable,
+} from "@/components/doctor/PatientNavigation";
 import {
   Badge,
   Button,
   Card,
   Dialog,
-  Field,
-  inputClass,
+  EmptyState,
 } from "@/components/doctor/DoctorUI";
 import {
-  PatientNavigation,
-  PatientUnavailable,
-} from "@/components/doctor/PatientNavigation";
-import { doctorDate, findDoctorPatient } from "@/lib/doctor";
-import { DEMO_DATE } from "@/app/_data/doctor-demo";
+  getClosureApi,
+  cancelClosureApi,
+} from "@/api/doctor/doctor-closure.api";
+import type {
+  ClosureContext,
+  ClosureRequest,
+} from "@/types/doctor/doctor-closure.type";
+import { appointmentDate } from "@/lib/doctor-appointment";
+import ClosureForm from "./ClosureForm";
 
+const statusLabels = {
+  CONSIDERING: "산모 확인 대기",
+  ACCEPT: "종료 확정",
+  REJECT: "산모 반려",
+  CANCELLED: "요청 취소",
+};
+const outcomeLabels = {
+  FULLTERM: "만삭 출산",
+  PREMATUREBIRTH: "조산",
+  ABORTION: "유산",
+};
 export default function EndRequestForm({
   pregnancyId,
 }: {
   pregnancyId: string;
 }) {
-  const { state, requestEnd, cancelEnd, completeEnd, notify } = useDoctor();
-  const [draft, setDraft] = useState<{
-    date: string;
-    reason: string;
-    note: string;
-  } | null>(null);
-  const [simulation, setSimulation] = useState<"mother" | "doctor" | null>(
-    null,
-  );
+  const { state, notify, refreshConnections } = useDoctor();
   const patient = findDoctorPatient(state, pregnancyId);
-  if (!patient || patient.connection !== "approved")
-    return <PatientUnavailable />;
-  const pending = state.endRequests.find(
-    (r) => r.patientId === patient.id && r.status === "pending",
-  );
-  const history = state.endRequests.filter((r) => r.patientId === patient.id);
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    setDraft({
-      date: String(data.get("date")),
-      reason: String(data.get("reason")),
-      note: String(data.get("note")).trim(),
-    });
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<{
+    key: string;
+    data?: ClosureContext;
+    error?: string;
+  }>();
+  const [cancel, setCancel] = useState<ClosureRequest>();
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const enabled = Boolean(patient);
+  const key = `${pregnancyId}:${revision}`;
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    getClosureApi(pregnancyId, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setResult({ key, data });
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setResult({
+            key,
+            error:
+              cause instanceof Error
+                ? cause.message
+                : "종료 정보를 확인하지 못했습니다.",
+          });
+      });
+    return () => controller.abort();
+  }, [pregnancyId, enabled, key]);
+  const current = result?.key === key ? result : undefined;
+  const data = current?.data;
+  function refresh() {
+    setRevision((v) => v + 1);
+    refreshConnections();
   }
+  async function cancelRequest() {
+    if (!cancel || lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    try {
+      await cancelClosureApi(pregnancyId, cancel.id);
+      notify("종료 요청을 취소했습니다.");
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : "취소하지 못했습니다.",
+        "error",
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+      setCancel(undefined);
+      refresh();
+    }
+  }
+  if (!patient) return <PatientUnavailable />;
   return (
     <>
       <PatientNavigation patient={patient} />
-      <div className="mb-6 rounded-xl border border-[#E8E1D4] bg-[#FBF6EC] p-5 text-sm leading-7 text-[#948363]">
-        임신 관리 종료는 앱의 기록·일정 관리 상태를 변경하는 기능입니다. 산모는
-        의료진의 승인 없이 직접 종료할 수 있습니다. 의료진 요청 후 산모 확인
-        방식은 검토안으로 시연합니다.
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-6">
-        <Card
-          title={
-            patient.status === "ended"
-              ? "임신 관리가 종료되었습니다"
-              : pending
-                ? "산모 확인 대기"
-                : "임신 관리 종료 요청"
-          }
-          description="담당 연결 해제와 임신 관리 종료는 다른 기능입니다."
-        >
-          {patient.status === "ended" ? (
-            <>
-              <Badge tone="neutral">관리 종료</Badge>
-              <p className="mt-5 text-sm text-[#7C919E]">
-                종료일 {doctorDate(patient.endedOn ?? "")} · 기존 기록은
-                보존되며 새 검진과 일정 등록이 중지됩니다.
-              </p>
-            </>
-          ) : pending ? (
-            <>
-              <Badge tone="amber">확인 대기</Badge>
-              <dl className="mt-6 space-y-4 text-sm">
-                <div>
-                  <dt className="text-xs text-[#93A5B0]">종료 예정일</dt>
-                  <dd className="mt-1">{doctorDate(pending.date)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[#93A5B0]">사유</dt>
-                  <dd className="mt-1">{pending.reason}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[#93A5B0]">메모</dt>
-                  <dd className="mt-1 whitespace-pre-wrap">
-                    {pending.note || "없음"}
-                  </dd>
-                </div>
-              </dl>
-              <Button
-                variant="secondary"
-                className="mt-6"
-                onClick={() => cancelEnd(pending.id)}
-              >
-                요청 취소
-              </Button>
-            </>
-          ) : (
-            <form onSubmit={submit} className="space-y-5">
-              <div className="grid grid-cols-2 gap-5">
-                <Field label="종료일 *">
-                  <input
-                    name="date"
-                    type="date"
-                    required
-                    max={DEMO_DATE}
-                    defaultValue={DEMO_DATE}
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="종료 사유 *">
-                  <select name="reason" required className={inputClass}>
-                    <option value="">선택해 주세요</option>
-                    <option>출산</option>
-                    <option>유산·사산</option>
-                    <option>기타 관리 종료</option>
-                  </select>
-                </Field>
-              </div>
-              <Field label="산모에게 전달할 내용">
-                <textarea
-                  name="note"
-                  rows={5}
-                  maxLength={2000}
-                  placeholder="관리 종료에 대한 안내를 입력해 주세요."
-                  className={inputClass}
-                />
-              </Field>
-              <div className="flex justify-end">
-                <Button type="submit">종료 요청 확인</Button>
-              </div>
-            </form>
-          )}
-        </Card>
-        <Card title="종료 이후에는">
-          <ul className="space-y-5 text-sm text-[#7A919D]">
-            <li>기존 검진·증상·예측 이력 열람</li>
-            <li>새 검진과 다음 일정 등록 중지</li>
-            <li>남아 있는 방문 일정 취소</li>
-            <li>연결을 해제하려면 산모 개요에서 별도 진행</li>
-          </ul>
-        </Card>
-      </div>
-      <Card title="처리 이력" className="mt-6">
-        {history.length ? (
-          <div className="divide-y divide-[#EDF1F3]">
-            {history.map((r) => (
-              <div key={r.id} className="flex justify-between py-3 text-sm">
-                <span>
-                  {doctorDate(r.date)} · {r.reason}
-                </span>
-                <Badge tone={r.status === "completed" ? "neutral" : "amber"}>
-                  {r.status === "pending"
-                    ? "확인 대기"
-                    : r.status === "cancelled"
-                      ? "취소"
-                      : "종료 완료"}
-                </Badge>
-              </div>
-            ))}
-          </div>
+      <Card
+        title="임신 종료 요청·이력"
+        action={
+          <Button variant="secondary" disabled={busy} onClick={refresh}>
+            최신 상태 확인
+          </Button>
+        }
+      >
+        <p className="mb-6 text-sm leading-7 text-[#6F8793]">
+          의료진이 종료 내용을 요청하고 산모 본인이 확인·수락하면 종료가
+          확정됩니다. 요청만 보낸 상태에서는 검진과 일정 등록을 계속할 수
+          있습니다.
+        </p>
+        {!current ? (
+          <p role="status" className="py-10 text-center text-sm text-[#8297A2]">
+            종료 정보를 확인하고 있습니다.
+          </p>
+        ) : current.error ? (
+          <p role="alert" className="text-sm text-red-700">
+            {current.error}
+          </p>
         ) : (
-          <p className="text-sm text-[#9BACB5]">종료 요청 이력이 없습니다.</p>
+          data && (
+            <>
+              {!data.active ? (
+                <div className="mb-6 rounded-xl bg-[#F1F6F8] p-5 text-sm">
+                  {data.pregnancy_status === "BIRTH"
+                    ? "출산 완료"
+                    : "임신 종료"}{" "}
+                  · 종료일 {doctorDate(data.ended_on ?? "")}
+                  <p className="mt-2 text-[#6F8793]">
+                    이전 임신에서 기록을 열람할 수 있습니다. 예정된 방문 일정은
+                    자동 취소하지 않습니다.
+                  </p>
+                </div>
+              ) : data.legacy_review_required ? (
+                <p className="mb-6 rounded-xl bg-amber-50 p-5 text-sm text-amber-800">
+                  이전 방식의 종료 기록이 있어 확인이 필요합니다. 새 요청으로
+                  덮어쓰지 않습니다.
+                </p>
+              ) : data.has_pending ? (
+                <p className="mb-6 rounded-xl bg-[#EDF7F5] p-5 text-sm text-[#168B86]">
+                  이 임신에는 산모가 확인 중인 종료 요청이 있습니다. 본인의
+                  요청은 아래에서 취소 후 다시 작성할 수 있습니다.
+                </p>
+              ) : data.fetuses.length === 0 ? (
+                <EmptyState
+                  title="등록된 태아 정보가 없습니다"
+                  description="태아 정보 확인 후 종료를 요청해 주세요."
+                />
+              ) : (
+                <ClosureForm
+                  key={revision}
+                  pregnancyId={pregnancyId}
+                  fetuses={data.fetuses}
+                  done={() => {
+                    notify("산모에게 종료 확인을 요청했습니다.");
+                    refresh();
+                  }}
+                />
+              )}
+              <div className="mt-8 border-t border-[#E7EDF1] pt-6">
+                <h2 className="mb-5 font-semibold">내가 보낸 요청 이력</h2>
+                {data.requests.length === 0 ? (
+                  <p className="py-6 text-sm text-[#8297A2]">
+                    보낸 종료 요청이 없습니다.
+                  </p>
+                ) : (
+                  <ul className="space-y-5">
+                    {data.requests.map((request) => (
+                      <li
+                        key={request.id}
+                        className="rounded-xl border border-[#E0E8EC] p-5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[#8297A2]">
+                            요청 #{request.id} ·{" "}
+                            {appointmentDate(request.requested_at)}
+                          </span>
+                          <Badge
+                            tone={
+                              request.status === "CONSIDERING"
+                                ? "amber"
+                                : "neutral"
+                            }
+                          >
+                            {statusLabels[request.status]}
+                          </Badge>
+                        </div>
+                        <ul className="mt-4 space-y-2 text-sm">
+                          {request.items.map((item) => (
+                            <li key={item.fetus_id}>
+                              {item.fetus_name} · {outcomeLabels[item.outcome]}{" "}
+                              · {doctorDate(item.ended_on)}
+                            </li>
+                          ))}
+                        </ul>
+                        {request.note && (
+                          <p className="mt-4 whitespace-pre-wrap text-sm text-[#6F8793]">
+                            전달 내용 · {request.note}
+                          </p>
+                        )}
+                        {request.decision_note && (
+                          <p className="mt-3 whitespace-pre-wrap text-sm text-[#6F8793]">
+                            산모 확인 내용 · {request.decision_note}
+                          </p>
+                        )}
+                        {request.reviewed_at && (
+                          <p className="mt-3 text-xs text-[#8297A2]">
+                            처리 시각 · {appointmentDate(request.reviewed_at)}
+                          </p>
+                        )}
+                        {request.status === "CONSIDERING" && data.active && (
+                          <div className="mt-4">
+                            <Button
+                              variant="danger"
+                              disabled={busy}
+                              onClick={() => setCancel(request)}
+                            >
+                              종료 요청 취소
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-5 text-xs text-[#8297A2]">
+                  최근 {data.limit}개 요청까지 표시합니다.
+                </p>
+              </div>
+            </>
+          )
         )}
       </Card>
-      {patient.status === "active" && (
-        <details className="mt-6 rounded-xl border border-dashed border-[#D5E0E5] p-5">
-          <summary className="cursor-pointer text-xs font-medium text-[#8B9EA8]">
-            시연용 상태 변경 · 실제 산모에게 전송되지 않습니다
-          </summary>
-          <div className="mt-4 flex gap-3">
-            <Button variant="secondary" onClick={() => setSimulation("mother")}>
-              산모 단독 종료 시연
-            </Button>
-            {pending && (
-              <Button
-                variant="secondary"
-                onClick={() => setSimulation("doctor")}
-              >
-                산모가 요청 확인한 상황 시연
-              </Button>
-            )}
-          </div>
-        </details>
-      )}
-      {draft && (
-        <Dialog title="종료 요청을 남길까요?" onClose={() => setDraft(null)}>
-          <p className="text-sm leading-7 text-[#7C919D]">
-            {patient.name} · {doctorDate(draft.date)} · {draft.reason}
-            <br />이 단계에서는 관리가 종료되지 않고 산모 확인 대기로
-            표시됩니다.
-          </p>
-          <div className="mt-7 flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setDraft(null)}>
-              돌아가기
-            </Button>
-            <Button
-              onClick={() => {
-                try {
-                  requestEnd(patient.id, draft.date, draft.reason, draft.note);
-                  setDraft(null);
-                } catch (error) {
-                  notify(
-                    error instanceof Error
-                      ? error.message
-                      : "처리할 수 없습니다.",
-                    "error",
-                  );
-                }
-              }}
-            >
-              시연 요청 남기기
-            </Button>
-          </div>
-        </Dialog>
-      )}
-      {simulation && (
+      {cancel && (
         <Dialog
-          title="관리 종료 상태를 시연할까요?"
-          onClose={() => setSimulation(null)}
+          title="종료 요청을 취소할까요?"
+          onClose={() => {
+            if (!busy) setCancel(undefined);
+          }}
         >
-          <p className="text-sm leading-7 text-[#7C919D]">
-            {simulation === "mother"
-              ? "산모가 단독으로 종료한 상황"
-              : "산모가 의료진의 요청을 확인한 상황"}
-            을 반영합니다. 현재 시연에서 새 기록 등록과 남은 일정이 중지됩니다.
+          <p className="max-w-md text-sm leading-7">
+            요청 #{cancel.id}을 취소합니다. 임신 상태는 바뀌지 않으며 요청
+            이력은 남습니다.
           </p>
-          <div className="mt-7 flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setSimulation(null)}>
-              취소
-            </Button>
+          <div className="mt-6 flex justify-end gap-3">
             <Button
-              variant="danger"
-              onClick={() => {
-                completeEnd(patient.id, simulation);
-                setSimulation(null);
-              }}
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setCancel(undefined)}
             >
-              종료 상태 시연
+              유지
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={cancelRequest}>
+              {busy ? "처리 중" : "요청 취소 확정"}
             </Button>
           </div>
         </Dialog>

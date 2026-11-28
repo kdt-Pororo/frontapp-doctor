@@ -1,32 +1,128 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Save, Sparkles } from "lucide-react";
+import { Save } from "lucide-react";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
-import {
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  inputClass,
-  LinkButton,
-} from "@/components/doctor/DoctorUI";
 import {
   PatientNavigation,
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
-import { findDoctorPatient } from "@/lib/doctor";
-import { DEMO_DATE } from "@/app/_data/doctor-demo";
+import {
+  Button,
+  Card,
+  EmptyState,
+  inputClass,
+  LinkButton,
+} from "@/components/doctor/DoctorUI";
+import { findDoctorPatient, todayKST } from "@/lib/doctor";
+import {
+  createDoctorRecordApi,
+  getFeatureSchemaApi,
+} from "@/api/doctor/doctor-record.api";
+import type {
+  FeatureSchemaDTO,
+  FeatureSpec,
+} from "@/types/doctor/doctor-record.type";
+
+function FeatureInput({ spec }: { spec: FeatureSpec }) {
+  return (
+    <div>
+      <label
+        htmlFor={`feature-${spec.key}`}
+        className="mb-2 block text-sm font-medium text-[#58727F]"
+      >
+        {spec.label}
+        <span className="ml-2 font-normal text-[#8A9EA9]">{spec.unit}</span>
+      </label>
+      <input
+        id={`feature-${spec.key}`}
+        name={spec.key}
+        type="number"
+        min={spec.minimum}
+        max={spec.maximum}
+        step={spec.step}
+        disabled={!spec.enabled}
+        placeholder={spec.enabled ? "미입력" : "정의 확정 후 입력"}
+        className={inputClass}
+      />
+      {!spec.enabled && (
+        <p className="mt-2 text-xs leading-5 text-[#879BA6]">{spec.note}</p>
+      )}
+    </div>
+  );
+}
 
 export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
-  const { state, saveExam, notify } = useDoctor();
-  const router = useRouter();
-  const [schedule, setSchedule] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { state, notify } = useDoctor();
   const patient = findDoctorPatient(state, pregnancyId);
-  if (!patient || patient.connection !== "approved")
-    return <PatientUnavailable />;
+  const router = useRouter();
+  const [schema, setSchema] = useState<FeatureSchemaDTO | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const lastSubmission = useRef<{ fingerprint: string; key: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getFeatureSchemaApi(controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) setSchema(value);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "입력 항목을 불러오지 못했습니다.",
+          );
+      });
+    return () => controller.abort();
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!schema || !patient || busy || lock.current) return;
+    const data = new FormData(event.currentTarget);
+    const features: Record<string, number | null> = {};
+    for (const spec of schema.features) {
+      const raw = String(data.get(spec.key) ?? "").trim();
+      features[spec.key] = spec.enabled && raw !== "" ? Number(raw) : null;
+    }
+    const values = {
+      visit_date: String(data.get("visit_date")),
+      title: String(data.get("title")).trim(),
+      notes: String(data.get("notes") ?? "").trim(),
+      test_results: String(data.get("test_results") ?? "").trim(),
+      feature_schema_version: schema.version,
+      features,
+    };
+    const fingerprint = JSON.stringify(values);
+    if (lastSubmission.current?.fingerprint !== fingerprint)
+      lastSubmission.current = { fingerprint, key: crypto.randomUUID() };
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await createDoctorRecordApi(pregnancyId, {
+        ...values,
+        submission_key: lastSubmission.current.key,
+      });
+      notify("검진 기록을 저장했습니다. 예측 모델은 아직 연결되지 않았습니다.");
+      router.push(`/patients/${pregnancyId}/records`);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "검진을 저장하지 못했습니다.",
+      );
+    } finally {
+      setBusy(false);
+      lock.current = false;
+    }
+  }
+
+  if (!patient) return <PatientUnavailable />;
   if (patient.status === "ended")
     return (
       <>
@@ -34,206 +130,195 @@ export default function ExamForm({ pregnancyId }: { pregnancyId: string }) {
         <Card>
           <EmptyState
             title="관리가 종료된 임신입니다"
-            description="기존 기록을 열람할 수 있으며 새 검진과 일정은 입력할 수 없습니다."
+            description="기록 조회만 가능하며 새 검진을 입력할 수 없습니다."
           />
         </Card>
       </>
     );
-  const patientId = patient.id;
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const value = (key: string) => String(data.get(key) ?? "").trim();
-    if (schedule && value("nextDate") < value("visitedAt")) {
-      notify("다음 방문일은 검진일 이후로 선택해 주세요.", "error");
-      return;
-    }
-    setSaving(true);
-    try {
-      saveExam({
-        patientId,
-        visitedAt: value("visitedAt"),
-        title: value("title"),
-        notes: value("notes"),
-        results: value("results"),
-        bloodPressure: value("bloodPressure"),
-        weight: value("weight"),
-        nextDate: schedule ? value("nextDate") : "",
-        nextTime: schedule ? value("nextTime") : "",
-        nextTitle: schedule ? value("nextTitle") : "",
-      });
-      router.push(`/patients/${patientId}/records`);
-    } catch (error) {
-      notify(
-        error instanceof Error ? error.message : "입력 내용을 확인해 주세요.",
-        "error",
-      );
-      setSaving(false);
-    }
-  }
+  const groups = schema
+    ? [
+        {
+          title: "공통 측정값",
+          specs: schema.features.filter(
+            (f) => f.enabled && f.groups.length > 1,
+          ),
+        },
+        {
+          title: "산모 건강 입력 후보",
+          specs: schema.features.filter(
+            (f) =>
+              f.enabled &&
+              f.groups.length === 1 &&
+              f.groups.includes("MATERNAL"),
+          ),
+        },
+        {
+          title: "조산 위험 입력 후보",
+          specs: schema.features.filter(
+            (f) =>
+              f.enabled &&
+              f.groups.length === 1 &&
+              f.groups.includes("PRETERM"),
+          ),
+        },
+      ]
+    : [];
+
   return (
     <>
       <PatientNavigation patient={patient} />
       <form
         onSubmit={submit}
-        className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-6"
+        className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-6"
       >
         <div className="space-y-6">
           <Card
             title="새 검진 기록"
-            description="검진 결과와 다음 방문 계획을 한 번에 남깁니다."
+            description="검진값을 입력하고 당시의 관찰 내용을 기록합니다. 빈 항목은 미입력으로 보관합니다."
           >
-            <div className="grid grid-cols-2 gap-5">
-              <Field label="검진일 *">
+            <fieldset disabled={busy} className="grid grid-cols-2 gap-5">
+              <div>
+                <label
+                  htmlFor="visit_date"
+                  className="mb-2 block text-sm font-medium"
+                >
+                  검진일 *
+                </label>
                 <input
+                  id="visit_date"
+                  name="visit_date"
                   type="date"
-                  name="visitedAt"
                   required
-                  defaultValue={DEMO_DATE}
+                  defaultValue={todayKST()}
+                  max={todayKST()}
                   className={inputClass}
                 />
-              </Field>
-              <Field label="검진명 *">
+              </div>
+              <div>
+                <label
+                  htmlFor="title"
+                  className="mb-2 block text-sm font-medium"
+                >
+                  검진명 *
+                </label>
                 <input
+                  id="title"
                   name="title"
                   required
                   maxLength={100}
                   placeholder="예: 정기 산전 검진"
                   className={inputClass}
                 />
-              </Field>
-              <Field label="혈압 (mmHg)">
-                <input
-                  name="bloodPressure"
-                  placeholder="예: 112/72"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="체중 (kg)">
-                <input
-                  type="number"
-                  name="weight"
-                  min="20"
-                  max="300"
-                  step="0.1"
-                  placeholder="예: 63.2"
-                  className={inputClass}
-                />
-              </Field>
-              <div className="col-span-2">
-                <Field label="검진 내용 *">
-                  <textarea
-                    name="notes"
-                    required
-                    maxLength={4000}
-                    rows={5}
-                    placeholder="검진 내용과 관찰 사항을 기록해 주세요."
-                    className={inputClass}
-                  />
-                </Field>
               </div>
-              <div className="col-span-2">
-                <Field label="검사 결과">
-                  <textarea
-                    name="results"
-                    maxLength={4000}
-                    rows={4}
-                    placeholder="검사 항목과 결과를 입력해 주세요."
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-            </div>
+            </fieldset>
           </Card>
-          <Card
-            title="다음 방문 일정"
-            action={<CalendarDays size={19} className="text-[#6C9D9C]" />}
-          >
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={schedule}
-                onChange={(e) => setSchedule(e.target.checked)}
-                className="size-4 accent-[#168B86]"
-              />
-              다음 검진 일정도 함께 등록하기
+          {!schema && !error && (
+            <p role="status" className="p-8 text-sm text-[#8297A2]">
+              입력 항목을 확인하고 있습니다.
+            </p>
+          )}
+          {groups.map((group) => (
+            <Card key={group.title} title={group.title}>
+              <fieldset
+                disabled={busy}
+                className="grid grid-cols-2 gap-x-6 gap-y-5"
+              >
+                {group.specs.map((spec) => (
+                  <FeatureInput key={spec.key} spec={spec} />
+                ))}
+              </fieldset>
+            </Card>
+          ))}
+          {schema && (
+            <details className="rounded-2xl border border-[#DFE8EC] bg-white p-6">
+              <summary className="cursor-pointer font-semibold text-[#58727F]">
+                분류 항목 · 입력 보류
+              </summary>
+              <p className="mt-3 text-sm leading-6 text-[#879BA6]">
+                소변 단백과 부종의 원자료 코드 정의를 확인한 후 입력 방식을
+                정합니다. 현재는 정상 또는 0으로 간주하지 않습니다.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-5">
+                {schema.features
+                  .filter((spec) => !spec.enabled)
+                  .map((spec) => (
+                    <FeatureInput key={spec.key} spec={spec} />
+                  ))}
+              </div>
+            </details>
+          )}
+          <Card title="검진 내용과 의료진 메모">
+            <label htmlFor="notes" className="mb-2 block text-sm font-medium">
+              검진 내용·관찰 사항
             </label>
-            {schedule && (
-              <div className="mt-6 grid grid-cols-2 gap-5">
-                <Field label="방문일 *">
-                  <input
-                    type="date"
-                    name="nextDate"
-                    required
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="시간 *">
-                  <input
-                    type="time"
-                    name="nextTime"
-                    required
-                    className={inputClass}
-                  />
-                </Field>
-                <div className="col-span-2">
-                  <Field label="방문 내용 *">
-                    <input
-                      name="nextTitle"
-                      required
-                      placeholder="예: 정밀 초음파 검진"
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-              </div>
-            )}
-          </Card>
-          <div className="flex justify-end gap-3">
-            <LinkButton
-              href={`/patients/${patient.id}/records`}
-              secondary
+            <textarea
+              id="notes"
+              name="notes"
+              rows={5}
+              maxLength={10000}
+              disabled={busy}
+              className={inputClass}
+              placeholder="관찰 내용과 진료 메모를 입력해 주세요."
+            />
+            <label
+              htmlFor="test_results"
+              className="mt-5 mb-2 block text-sm font-medium"
             >
+              검사 결과
+            </label>
+            <textarea
+              id="test_results"
+              name="test_results"
+              rows={3}
+              maxLength={10000}
+              disabled={busy}
+              className={inputClass}
+            />
+          </Card>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 p-5 text-sm text-red-700"
+            >
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            <LinkButton secondary href={`/patients/${pregnancyId}/records`}>
               취소
             </LinkButton>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={!schema || busy}>
               <Save size={16} />
-              {saving ? "저장 중" : "검진 기록 저장"}
+              {busy ? "저장 중…" : "검진 기록 저장"}
             </Button>
           </div>
         </div>
-        <Card
-          title="기록과 예측 연결"
-          action={<Sparkles size={18} className="text-[#8E80B8]" />}
-        >
-          <ol className="space-y-6 text-sm">
-            <li>
-              <p className="font-semibold">01 · 검진 기록 저장</p>
-              <p className="mt-2 text-xs leading-6 text-[#8A9EA9]">
-                작성한 검진과 다음 일정이 시연 화면에 반영됩니다.
-              </p>
-            </li>
-            <li>
-              <p className="font-semibold text-[#95A3B0]">
-                02 · 모델에 입력 전달
-              </p>
-              <p className="mt-2 text-xs leading-6 text-[#8A9EA9]">
-                모델과 입력 항목이 확정되면 백엔드에서 연결할 단계입니다.
-              </p>
-            </li>
-            <li>
-              <p className="font-semibold text-[#95A3B0]">
-                03 · 예측 이력 보관
-              </p>
-              <p className="mt-2 text-xs leading-6 text-[#8A9EA9]">
-                검진 기록 ID를 기준으로 결과와 실행 시각을 보관할 예정입니다.
-              </p>
-            </li>
-          </ol>
-          <p className="mt-7 rounded-xl bg-[#F4F1FB] p-4 text-xs leading-6 text-[#8C7BA5]">
-            지금은 모델 미연결 상태입니다. 임의의 예측값을 생성하지 않습니다.
-          </p>
-        </Card>
+        <aside className="space-y-6">
+          <Card title="입력과 예측">
+            <p className="text-sm leading-7 text-[#7B929E]">
+              현재는 검진값과 메모를 저장합니다. 데이터와 모델이 정해지면 이
+              기록을 바탕으로 예측 결과와 항목별 기여도를 연결합니다.
+            </p>
+            <p className="mt-5 rounded-xl bg-[#F1F6F8] p-4 text-sm text-[#58727F]">
+              모델 미연결 · 점수 생성 안 함
+            </p>
+            <p className="mt-4 text-xs leading-6 text-[#879BA6]">
+              입력 항목은 잠정 구성입니다. 측정하지 않은 값은 추정해서 채우지
+              마세요.
+            </p>
+          </Card>
+          <Card title="다음 방문 일정">
+            <p className="text-sm leading-7 text-[#879BA6]">
+              검진 기록과 방문 일정은 각각 저장합니다.
+            </p>
+            <a
+              href={`/patients/${pregnancyId}/appointments`}
+              className="mt-4 inline-block text-sm font-semibold text-[#168B86]"
+            >
+              방문 일정 관리 →
+            </a>
+          </Card>
+        </aside>
       </form>
     </>
   );

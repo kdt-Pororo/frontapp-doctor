@@ -17,10 +17,11 @@ export default function DoctorAuthFrame({
     >
       <Image
         src="/icons/nestep_main_icon.png"
-        width={31}
-        height={31}
+        width={553}
+        height={513}
+        sizes="31px"
         alt=""
-        className="h-auto "
+        className="h-auto w-7.75"
       />
       NESTEP
       <span className="ml-2 border-l border-current/20 pl-3 text-xs font-normal tracking-normal opacity-60">
@@ -30,11 +31,11 @@ export default function DoctorAuthFrame({
   );
   if (!login)
     return (
-      <div className="min-h-screen min-w-330 bg-[#F3F7F9] text-[#254450]">
+      <div className="min-h-screen min-w-330 bg-[#F3F7F9] font-pretendard text-[#254450]">
         <header className="border-b border-[#E1E9ED] bg-white px-12 py-6">
           {logo}
         </header>
-        <main className="mx-auto max-w-4xl px-8 py-14">{children}</main>
+        <main className="mx-auto max-w-6xl px-8 py-12">{children}</main>
         <p className="pb-8 text-center text-xs text-[#9AABB5]">
           의료진 자격 확인이 완료되면 산모 관리 기능을 이용할 수 있습니다.
         </p>
@@ -69,8 +70,8 @@ export default function DoctorAuthFrame({
             </span>
           </div>
         </div>
-        <div className="absolute -bottom-44 -right-32  rounded-full border border-[#397B82]/25" />
-        <div className="absolute -bottom-24 -right-12  rounded-full border border-[#397B82]/20" />
+        <div className="absolute -bottom-44 -right-32 rounded-full border border-[#397B82]/25" />
+        <div className="absolute -bottom-24 -right-12 rounded-full border border-[#397B82]/20" />
         <p className="relative z-10 text-[11px] text-[#62818E]">
           NESTEP · 의료진 전용 워크스페이스
         </p>

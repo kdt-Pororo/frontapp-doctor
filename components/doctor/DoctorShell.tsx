@@ -12,42 +12,62 @@ import {
   LogOut,
   Settings2,
   UsersRound,
+  Search,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useDoctor } from "./DoctorProvider";
-import { Badge, Card, LinkButton } from "./DoctorUI";
+import { Card, LinkButton } from "./DoctorUI";
 
 const links = [
   { label: "대시보드", href: "/dashboard", icon: LayoutDashboard },
   { label: "담당 산모", href: "/patients", icon: UsersRound },
-  { label: "산모 연결", href: "/patients/connect", icon: Link2 },
+  { label: "산모 조회", href: "/directory", icon: Search },
+  { label: "연결 요청", href: "/patients/connect", icon: Link2 },
   { label: "내 프로필", href: "/my", icon: Settings2 },
 ];
 
 export default function DoctorShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { state, notify } = useDoctor();
+  const { state, notify, loading, loadError, refreshConnections } = useDoctor();
   const router = useRouter();
   async function logout() {
-    try { await logoutDoctorApi(); router.replace("/login"); }
-    catch { notify("로그아웃하지 못했습니다. 다시 시도해 주세요.", "error"); }
+    try {
+      await logoutDoctorApi();
+      router.replace("/login");
+    } catch {
+      notify("로그아웃하지 못했습니다. 다시 시도해 주세요.", "error");
+    }
   }
-  const active = pathname.includes("/connect")
-    ? "/patients/connect"
-    : pathname.includes("/patients")
-      ? "/patients"
-      : pathname.includes("/my")
-        ? "/my"
-        : "/dashboard";
-  const title = pathname.includes("/records/new")
-    ? "검진·일정 입력"
-    : pathname.includes("/risks")
-      ? "위험도 추이"
-      : pathname.includes("/end-request")
-        ? "임신 관리 종료"
-        : pathname.includes("/records")
-          ? "기록 조회"
-          : links.find((item) => item.href === active)?.label;
+  const active = pathname.startsWith("/directory")
+    ? "/directory"
+    : pathname.includes("/connect")
+      ? "/patients/connect"
+      : pathname.includes("/patients")
+        ? "/patients"
+        : pathname.includes("/my")
+          ? "/my"
+          : "/dashboard";
+  const title = pathname.startsWith("/directory")
+    ? pathname.endsWith("/history")
+      ? "공유 검진 이력"
+      : pathname === "/directory"
+        ? "산모 조회"
+        : "공유 검진 기록"
+    : pathname.includes("/appointments")
+      ? "방문 일정"
+      : pathname.includes("/records/") && pathname.endsWith("/edit")
+        ? "검진 정정"
+        : pathname.includes("/records/") && pathname.endsWith("/history")
+          ? "검진 정정 이력"
+          : pathname.includes("/records/new")
+            ? "검진 입력"
+            : pathname.includes("/risks")
+              ? "위험도 추이"
+              : pathname.includes("/end-request")
+                ? "임신 종료"
+                : pathname.includes("/records")
+                  ? "기록 조회"
+                  : links.find((item) => item.href === active)?.label;
 
   if (state.profile.verification !== "verified")
     return (
@@ -55,7 +75,6 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
         <Card title="의료진 자격 확인이 필요합니다">
           <p className="mb-6 text-sm text-[#8A9BA5]">
             자격 확인 완료 상태에서 산모와 진료 화면을 이용할 수 있습니다.
-            현재는 프론트 시연입니다.
           </p>
           <LinkButton href="/verification">인증 상태 확인</LinkButton>
         </Card>
@@ -71,10 +90,11 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
         >
           <Image
             src="/icons/nestep_main_icon.png"
-            width={30}
-            height={29}
+            width={553}
+            height={513}
+            sizes="30px"
             alt=""
-            className="h-auto "
+            className="h-auto w-7.5"
           />
           NESTEP
         </Link>
@@ -110,7 +130,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
             href="/patients/connect"
             className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[#61C5B9]"
           >
-            새로운 산모 연결
+            연결 요청 확인
             <ArrowUpRight size={14} />
           </Link>
         </div>
@@ -148,10 +168,6 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
             <span className="font-medium text-[#58727F]">{title}</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-xs text-[#9BAAB3]">
-              프론트 시연 · 새로고침 시 초기화
-            </span>
-            <Badge tone="neutral">샘플 데이터</Badge>
             <Link
               href="/my"
               aria-label="내 프로필"
@@ -162,6 +178,26 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="mx-auto  px-8 pb-14 pt-8">
+          {loadError && (
+            <div
+              role="alert"
+              className="mb-6 flex items-center justify-between rounded-xl bg-red-50 p-4 text-sm text-red-700"
+            >
+              <span>{loadError}</span>
+              <button
+                type="button"
+                onClick={refreshConnections}
+                className="underline"
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
+          {loading && (
+            <p role="status" className="mb-5 text-sm text-[#8297A2]">
+              담당 산모 정보를 불러오고 있습니다.
+            </p>
+          )}
           {children}
         </main>
       </div>

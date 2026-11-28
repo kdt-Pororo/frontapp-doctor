@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DoctorAuthFrame from "@/components/doctor/DoctorAuthFrame";
 import { DoctorAuthError, doctorLoginUrl, getDoctorSessionApi, isDoctorAuthConfigured } from "@/api/auth/doctor-auth.api";
@@ -21,8 +21,7 @@ const errors: Record<string, string> = {
 export default function DoctorLogin() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [sessionError, setSessionError] = useState("");
-    const message = errors[searchParams.get("error") || ""] || sessionError;
+    const message = errors[searchParams.get("error") || ""];
 
     useEffect(() => {
         const controller = new AbortController();
@@ -38,7 +37,11 @@ export default function DoctorLogin() {
                 if (controller.signal.aborted) return;
                 // 미로그인은 정상적인 로그인 화면 진입입니다.
                 if (error instanceof DoctorAuthError && error.status === 401) return;
-                setSessionError(error instanceof DoctorAuthError ? error.message : "로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                // 자동 확인에 실패해도 로그인 화면은 사용할 수 있게 둡니다.
+                // 실제 소셜 로그인 실패는 콜백의 error 값으로 따로 안내합니다.
+                if (process.env.NODE_ENV === "development") {
+                    console.warn("의료진 로그인 상태 자동 확인 실패", error);
+                }
             }
         };
 
