@@ -14,5 +14,21 @@ export interface DoctorSessionDTO {
     doctor_profession: string;
     doctor_hospital: string;
     doctor_verification_status: boolean;
-    verification_status: "APPROVED" | "PENDING";
+    verification_status: "APPROVED" | "PENDING" | "REJECTED";
+    doctor_license_number: string | null;
+    doctor_email: string | null;
+    hospital_id: number | null;
+    doctor_rejection_reason: string | null;
+    doctor_submitted_at: string | null;
+}
+
+export interface DoctorApplicationContextDTO {
+    identity: DoctorPendingDTO;
+    profile: DoctorSessionDTO | null;
+}
+
+export interface DoctorHospitalDTO {
+    id: number;
+    hospital_name: string;
+    hospital_address: string;
 }

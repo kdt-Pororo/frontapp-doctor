@@ -1,21 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useDoctor } from "@/components/doctor/DoctorProvider";
-import {
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  EmptyState,
-} from "@/components/doctor/DoctorUI";
 import {
   PatientNavigation,
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
-import { doctorDate, findDoctorPatient } from "@/lib/doctor";
-import type { ExamRecord } from "@/types/doctor/doctor.type";
+import { Badge, Card, EmptyState } from "@/components/doctor/DoctorUI";
+import { findDoctorPatient, doctorDate } from "@/lib/doctor";
+import usePatientRecords from "../../_components/usePatientRecords";
 
 export default function PatientRecords({
   pregnancyId,
@@ -23,134 +18,145 @@ export default function PatientRecords({
   pregnancyId: string;
 }) {
   const { state } = useDoctor();
-  const [tab, setTab] = useState("exams");
-  const [selected, setSelected] = useState<ExamRecord | null>(null);
   const patient = findDoctorPatient(state, pregnancyId);
-  if (!patient || patient.connection !== "approved")
-    return <PatientUnavailable />;
-  const records = state.records
-    .filter((r) => r.patientId === patient.id)
-    .toSorted((a, b) => b.visitedAt.localeCompare(a.visitedAt));
-  const symptoms = state.symptoms
-    .filter((r) => r.patientId === patient.id)
-    .toSorted((a, b) => b.date.localeCompare(a.date));
+  const { records, schema, loading, error, refresh } = usePatientRecords(
+    pregnancyId,
+    Boolean(patient),
+  );
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const search = useSearchParams();
+  if (!patient) return <PatientUnavailable />;
+  const selected =
+    records.find(
+      (record) => record.id === (selectedId ?? Number(search.get("recordId"))),
+    ) ?? records.at(-1);
   return (
     <>
       <PatientNavigation patient={patient} />
-      <Card
-        title="기록 보관함"
-        description="검진 기록과 산모가 작성한 증상 일지를 함께 확인합니다."
-      >
-        <div className="mb-6 flex gap-2">
-          {[
-            ["exams", "병원 검진 기록"],
-            ["symptoms", "산모 증상 일지"],
-          ].map(([key, label]) => (
-            <Button
-              key={key}
-              variant={tab === key ? "primary" : "secondary"}
-              onClick={() => setTab(key)}
-            >
-              {label} · {key === "exams" ? records.length : symptoms.length}
-            </Button>
-          ))}
-        </div>
-        {tab === "exams" ? (
-          records.length ? (
-            <div className="divide-y divide-[#E9EFF2]">
-              {records.map((record) => (
-                <article
-                  key={record.id}
-                  className="flex items-center gap-5 py-5 first:pt-0"
-                >
-                  <span className="rounded-xl bg-[#EFF7F5] p-3 text-[#489D90]">
-                    <FileText size={20} />
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-xs text-[#95A6B0]">
-                      {doctorDate(record.visitedAt)}
-                    </p>
-                    <h3 className="mt-1 font-semibold">{record.title}</h3>
-                    <p className="mt-2 max-w-xl truncate text-sm text-[#859AA5]">
-                      {record.notes}
-                    </p>
-                  </div>
-                  <Badge
-                    tone={
-                      record.predictionStatus === "demo" ? "purple" : "neutral"
-                    }
-                  >
-                    {record.predictionStatus === "demo"
-                      ? "예시 추이 포함"
-                      : "모델 미연결"}
-                  </Badge>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setSelected(record)}
-                  >
-                    기록 열기
-                  </Button>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="아직 검진 기록이 없습니다" />
-          )
-        ) : symptoms.length ? (
-          <div className="space-y-4">
-            {symptoms.map((entry) => (
-              <article
-                key={entry.id}
-                className="rounded-xl border border-[#E5EDF0] p-5"
+      <div className="mb-5 flex justify-between text-sm text-[#879BA6]">
+        <p>
+          본인이 작성한 최근 100개 검진의 최신 버전입니다. 공유 증상은 개요에서
+          확인할 수 있습니다.
+        </p>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={refresh}
+          className="underline underline-offset-4"
+        >
+          새로고침
+        </button>
+      </div>
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-xl bg-red-50 p-5 text-sm text-red-700"
+        >
+          {error}
+        </p>
+      ) : loading ? (
+        <p role="status" className="p-12 text-center text-[#879BA6]">
+          검진 기록을 불러오고 있습니다.
+        </p>
+      ) : !selected ? (
+        <Card>
+          <EmptyState
+            title="저장된 검진 기록이 없습니다"
+            description="검진 결과를 저장하면 이곳에서 원본 입력값을 확인할 수 있습니다."
+          />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-[300px_minmax(0,1fr)] items-start gap-6">
+          <nav
+            aria-label="검진 기록 선택"
+            className="overflow-hidden rounded-2xl border border-[#E0E8EC] bg-white"
+          >
+            {[...records].reverse().map((record) => (
+              <button
+                key={record.id}
+                type="button"
+                aria-pressed={record.id === selected.id}
+                onClick={() => setSelectedId(record.id)}
+                className={`block w-full border-b border-[#E7EDF1] p-5 text-left ${record.id === selected.id ? "bg-[#EAF6F2]" : "hover:bg-[#F6F9FA]"}`}
               >
-                <p className="text-xs text-[#8EA1AC]">
-                  {doctorDate(entry.date)}
-                </p>
-                <h3 className="mt-2 font-semibold">{entry.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#728B97]">
-                  {entry.content}
-                </p>
-              </article>
+                <time className="text-xs text-[#879BA6]">
+                  {doctorDate(record.visited_at)} · #{record.id}
+                </time>
+                <span className="mt-2 block font-semibold text-[#496976]">
+                  {record.title}
+                </span>
+                <span className="mt-2 block text-xs text-[#8297A2]">
+                  v{record.record_version}
+                  {record.record_version > 1 && " · 정정됨"}
+                </span>
+              </button>
             ))}
-            <p className="text-xs text-[#90A0A9]">
-              산모가 직접 작성한 기록입니다. 의료진은 내용을 수정하지 않습니다.
+          </nav>
+          <Card
+            title={selected.title}
+            description={doctorDate(selected.visited_at)}
+            action={
+              <div className="flex gap-4">
+                <Link
+                  href={`/patients/${pregnancyId}/risks?recordId=${selected.id}`}
+                  className="text-sm text-[#168B86]"
+                >
+                  입력값·위험 분석 보기
+                </Link>
+                <Link
+                  href={`/patients/${pregnancyId}/records/${selected.id}/history`}
+                  className="text-sm text-[#168B86]"
+                >
+                  정정 이력
+                </Link>
+                {patient.status === "active" && (
+                  <Link
+                    href={`/patients/${pregnancyId}/records/${selected.id}/edit`}
+                    className="text-sm font-semibold text-[#168B86]"
+                  >
+                    기록 정정
+                  </Link>
+                )}
+              </div>
+            }
+          >
+            <div className="mb-5">
+              <Badge tone={selected.record_version > 1 ? "amber" : "neutral"}>
+                현재 v{selected.record_version}
+                {selected.record_version > 1 &&
+                  ` · 정정 ${selected.record_version - 1}회`}
+              </Badge>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-5">
+              {schema?.features
+                .filter((feature) => feature.enabled)
+                .map((feature) => (
+                  <div key={feature.key}>
+                    <dt className="text-xs text-[#879BA6]">{feature.label}</dt>
+                    <dd className="mt-2 text-sm text-[#496976]">
+                      {selected.feature_values[feature.key] ?? "미입력"}
+                      {selected.feature_values[feature.key] != null &&
+                        ` ${feature.unit}`}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+            <h3 className="mt-8 border-t border-[#E7EDF1] pt-6 font-semibold">
+              검진 내용·의료진 메모
+            </h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#6F8793]">
+              {selected.notes || "미입력"}
             </p>
-          </div>
-        ) : (
-          <EmptyState title="작성된 증상 일지가 없습니다" />
-        )}
-      </Card>
-      {selected && (
-        <Dialog title={selected.title} onClose={() => setSelected(null)}>
-          <p className="mb-6 text-sm text-[#92A3AD]">
-            {doctorDate(selected.visitedAt)} · {patient.name}
-          </p>
-          <dl className="grid grid-cols-2 gap-4 rounded-xl bg-[#F4F8F9] p-5 text-sm">
-            <div>
-              <dt className="text-xs text-[#90A2AD]">혈압</dt>
-              <dd className="mt-2">{selected.bloodPressure || "미입력"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-[#90A2AD]">체중</dt>
-              <dd className="mt-2">
-                {selected.weight ? `${selected.weight} kg` : "미입력"}
-              </dd>
-            </div>
-          </dl>
-          <h3 className="mt-6 text-sm font-semibold">검진 내용</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#758D99]">
-            {selected.notes}
-          </p>
-          <h3 className="mt-5 text-sm font-semibold">검사 결과</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#758D99]">
-            {selected.results || "미입력"}
-          </p>
-          <p className="mt-6 rounded-xl bg-[#F3F6FA] p-4 text-xs leading-6 text-[#8296A3]">
-            {selected.predictionStatus === "demo"
-              ? "가상 검진과 함께 준비한 예시 점수가 있습니다. 실제 모델 결과가 아닙니다."
-              : "검진은 저장되었으며, 모델이 연결되기 전까지 예측 결과는 생성되지 않습니다."}
-          </p>
-        </Dialog>
+            <h3 className="mt-6 font-semibold">검사 결과</h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#6F8793]">
+              {selected.test_results || "미입력"}
+            </p>
+            <p className="mt-7 rounded-xl bg-[#F2F7F8] p-4 text-xs text-[#6F8793]">
+              각 버전의 원본은 정정 이력에서 확인할 수 있습니다. 예측 모델은
+              아직 연결되지 않았습니다.
+            </p>
+          </Card>
+        </div>
       )}
     </>
   );
