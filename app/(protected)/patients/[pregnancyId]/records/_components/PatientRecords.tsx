@@ -8,7 +8,7 @@ import {
   PatientNavigation,
   PatientUnavailable,
 } from "@/components/doctor/PatientNavigation";
-import { Card, EmptyState } from "@/components/doctor/DoctorUI";
+import { Badge, Card, EmptyState } from "@/components/doctor/DoctorUI";
 import { findDoctorPatient, doctorDate } from "@/lib/doctor";
 import usePatientRecords from "../../_components/usePatientRecords";
 
@@ -35,7 +35,8 @@ export default function PatientRecords({
       <PatientNavigation patient={patient} />
       <div className="mb-5 flex justify-between text-sm text-[#879BA6]">
         <p>
-          본인이 작성한 최근 100개 검진입니다. 증상 일지는 별도 연결 예정입니다.
+          본인이 작성한 최근 100개 검진의 최신 버전입니다. 공유 증상은 개요에서
+          확인할 수 있습니다.
         </p>
         <button
           type="button"
@@ -84,6 +85,10 @@ export default function PatientRecords({
                 <span className="mt-2 block font-semibold text-[#496976]">
                   {record.title}
                 </span>
+                <span className="mt-2 block text-xs text-[#8297A2]">
+                  v{record.record_version}
+                  {record.record_version > 1 && " · 정정됨"}
+                </span>
               </button>
             ))}
           </nav>
@@ -91,14 +96,37 @@ export default function PatientRecords({
             title={selected.title}
             description={doctorDate(selected.visited_at)}
             action={
-              <Link
-                href={`/patients/${pregnancyId}/risks?recordId=${selected.id}`}
-                className="text-sm text-[#168B86]"
-              >
-                입력값·위험 분석 보기
-              </Link>
+              <div className="flex gap-4">
+                <Link
+                  href={`/patients/${pregnancyId}/risks?recordId=${selected.id}`}
+                  className="text-sm text-[#168B86]"
+                >
+                  입력값·위험 분석 보기
+                </Link>
+                <Link
+                  href={`/patients/${pregnancyId}/records/${selected.id}/history`}
+                  className="text-sm text-[#168B86]"
+                >
+                  정정 이력
+                </Link>
+                {patient.status === "active" && (
+                  <Link
+                    href={`/patients/${pregnancyId}/records/${selected.id}/edit`}
+                    className="text-sm font-semibold text-[#168B86]"
+                  >
+                    기록 정정
+                  </Link>
+                )}
+              </div>
             }
           >
+            <div className="mb-5">
+              <Badge tone={selected.record_version > 1 ? "amber" : "neutral"}>
+                현재 v{selected.record_version}
+                {selected.record_version > 1 &&
+                  ` · 정정 ${selected.record_version - 1}회`}
+              </Badge>
+            </div>
             <dl className="grid grid-cols-2 gap-x-8 gap-y-5">
               {schema?.features
                 .filter((feature) => feature.enabled)
@@ -124,7 +152,8 @@ export default function PatientRecords({
               {selected.test_results || "미입력"}
             </p>
             <p className="mt-7 rounded-xl bg-[#F2F7F8] p-4 text-xs text-[#6F8793]">
-              검진 원본은 저장되었습니다. 예측 모델은 아직 연결되지 않았습니다.
+              각 버전의 원본은 정정 이력에서 확인할 수 있습니다. 예측 모델은
+              아직 연결되지 않았습니다.
             </p>
           </Card>
         </div>

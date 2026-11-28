@@ -36,6 +36,7 @@ export interface FeatureContributionDTO {
 
 export interface RiskPredictionDTO {
   id: number | null;
+  record_version: number | null;
   feature_schema_version: string | null;
   input_snapshot: Record<string, number | null> | null;
   created_at: string | null;
@@ -53,6 +54,7 @@ export interface RiskPredictionDTO {
 export type ReviewItem = "verify_inputs" | "review_context" | "plan_follow_up";
 export interface RiskReviewDTO {
   risk_kind: RiskKind;
+  record_version: number;
   note_text: string;
   checked_items: ReviewItem[];
   version: number;
@@ -61,6 +63,8 @@ export interface RiskReviewDTO {
 
 export interface DoctorRecordDTO {
   id: number;
+  record_version: number;
+  updated_at: string | null;
   pregnancy_id: number;
   title: string;
   visited_at: string;
@@ -70,4 +74,43 @@ export interface DoctorRecordDTO {
   feature_values: Record<string, number | null>;
   predictions: RiskPredictionDTO[];
   reviews: RiskReviewDTO[];
+}
+
+export interface DoctorRecordCorrectionDTO extends DoctorRecordCreateDTO {
+  expected_record_version: number;
+  correction_reason: string;
+}
+export interface RecordRevision {
+  id: number;
+  record_version: number;
+  reason: string;
+  created_at: string;
+  snapshot: {
+    title: string;
+    visited_at: string;
+    notes: string | null;
+    test_results: string | null;
+    feature_schema_version: string;
+    feature_values: Record<string, number | null>;
+    fetus_id: number | null;
+    confirmed_due_date: string | null;
+    ehg: string | null;
+    original_created_at: string;
+  };
+  changes: {
+    field: string;
+    before: string | number | null;
+    after: string | number | null;
+    before_present: boolean;
+    after_present: boolean;
+  }[];
+  predictions: RiskPredictionDTO[];
+  reviews: RiskReviewDTO[];
+}
+export interface RecordHistory {
+  current_version: number;
+  page: number;
+  page_size: number;
+  total: number;
+  revisions: RecordRevision[];
 }

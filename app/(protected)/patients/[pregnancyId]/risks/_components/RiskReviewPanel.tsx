@@ -58,6 +58,7 @@ export default function RiskReviewPanel({
     try {
       const result = await saveRiskReviewApi(pregnancyId, recordId, kind, {
         expected_version: version,
+        expected_record_version: initial.record_version,
         note_text: text,
         checked_items: checked,
       });

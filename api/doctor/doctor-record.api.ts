@@ -6,6 +6,8 @@ import type {
   RiskKind,
   RiskReviewDTO,
   ReviewItem,
+  DoctorRecordCorrectionDTO,
+  RecordHistory,
 } from "@/types/doctor/doctor-record.type";
 
 export const getFeatureSchemaApi = (signal?: AbortSignal) =>
@@ -40,6 +42,7 @@ export const saveRiskReviewApi = (
   kind: RiskKind,
   values: {
     expected_version: number;
+    expected_record_version: number;
     note_text: string;
     checked_items: ReviewItem[];
   },
@@ -48,4 +51,38 @@ export const saveRiskReviewApi = (
     `/pregnancies/${encodeURIComponent(pregnancyId)}/records/${recordId}/reviews/${kind}`,
     "PUT",
     values,
+  );
+
+export const getDoctorRecordApi = (
+  pregnancyId: string,
+  recordId: string,
+  signal?: AbortSignal,
+) =>
+  doctorWorkspaceRequest<DoctorRecordDTO>(
+    `/pregnancies/${encodeURIComponent(pregnancyId)}/records/${encodeURIComponent(recordId)}`,
+    "GET",
+    undefined,
+    signal,
+  );
+export const correctDoctorRecordApi = (
+  pregnancyId: string,
+  recordId: string,
+  values: DoctorRecordCorrectionDTO,
+) =>
+  doctorWorkspaceRequest<{ id: number; record_version: number }>(
+    `/pregnancies/${encodeURIComponent(pregnancyId)}/records/${encodeURIComponent(recordId)}/corrections`,
+    "POST",
+    values,
+  );
+export const getRecordHistoryApi = (
+  pregnancyId: string,
+  recordId: string,
+  page = 1,
+  signal?: AbortSignal,
+) =>
+  doctorWorkspaceRequest<RecordHistory>(
+    `/pregnancies/${encodeURIComponent(pregnancyId)}/records/${encodeURIComponent(recordId)}/history?page=${page}&page_size=10`,
+    "GET",
+    undefined,
+    signal,
   );

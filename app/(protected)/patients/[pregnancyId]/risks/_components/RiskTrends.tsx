@@ -44,6 +44,7 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
     note_text: "",
     checked_items: [],
     version: 0,
+    record_version: selected?.record_version ?? 1,
     updated_at: null,
   };
   return (
@@ -128,7 +129,9 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="text-[#879BA6]">검진 번호</dt>
-                    <dd>#{selected.id}</dd>
+                    <dd>
+                      #{selected.id} · v{selected.record_version}
+                    </dd>
                   </div>
                 </dl>
                 <Link
@@ -147,7 +150,7 @@ export default function RiskTrends({ pregnancyId }: { pregnancyId: string }) {
                 prediction={prediction}
               />
               <RiskReviewPanel
-                key={`${selected.id}-${kind}-${review.version}`}
+                key={`${selected.id}-${selected.record_version}-${kind}-${review.version}`}
                 pregnancyId={pregnancyId}
                 recordId={selected.id}
                 kind={kind}
