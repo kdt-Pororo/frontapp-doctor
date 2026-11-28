@@ -50,7 +50,7 @@ export default function DoctorShell({ children }: { children: ReactNode }) {
       : pathname.includes("/risks")
         ? "위험도 추이"
         : pathname.includes("/end-request")
-          ? "임신 관리 종료"
+          ? "임신 종료"
           : pathname.includes("/records")
             ? "기록 조회"
             : links.find((item) => item.href === active)?.label;

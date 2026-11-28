@@ -65,7 +65,7 @@ export function PatientNavigation({ patient }: { patient: DoctorPatient }) {
           href={`${base}/end-request`}
           className="ml-auto inline-flex items-center gap-1 pb-4 text-xs text-[#9AA8AF]"
         >
-          임신 종료 요청
+          {patient.status === "ended" ? "종료 이력" : "임신 종료 요청"}
           <ArrowUpRight size={12} />
         </Link>
       </nav>
